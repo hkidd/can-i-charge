@@ -1,0 +1,109 @@
+@import 'tailwindcss';
+@import 'mapbox-gl/dist/mapbox-gl.css';
+
+:root {
+    /* Default to Dark Mode aesthetics for that futuristic feel */
+    --background: #09090b; /* Deep Void Black */
+    --foreground: #ecfdf5; /* Pale Mint/White for text */
+
+    /* The Energy Spectrum Palette */
+    --neon-low: #6366f1; /* Indigo (Low Score) */
+    --neon-mid: #06b6d4; /* Cyan (Mid Score) */
+    --neon-high: #10b981; /* Emerald/Neon Green (High Score) */
+    --neon-gold: #facc15; /* Gold (Opportunity Mode) */
+    --neon-red: #f87171; /* Soft Red (Alerts) */
+    --neon-orange: #fb923c; /* Vibrant Orange (Warnings) */
+    --neon-blue: #60a5fa; /* Blue (Port Weighting) */
+
+    /* Glass UI Variables */
+    --glass-bg: rgba(15, 23, 42, 0.65);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-shine: rgba(255, 255, 255, 0.03);
+}
+
+/* Define Tailwind Theme hooks */
+@theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-neon-low: var(--neon-low);
+    --color-neon-mid: var(--neon-mid);
+    --color-neon-high: var(--neon-high);
+    --color-neon-gold: var(--neon-gold);
+    --color-neon-blue: var(--neon-blue);
+    --color-neon-red: var(--neon-red);
+    --color-neon-orange: var(--neon-orange);
+}
+
+body {
+    background: var(--background);
+    color: var(--foreground);
+    /* Use a tech-oriented font stack if available, otherwise system */
+    font-family: 'Inter', 'Roboto', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* --- FUTURISTIC UI COMPONENTS --- */
+
+/* The HUD Glass Effect */
+.hud-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5),
+        inset 0 0 0 1px var(--glass-shine); /* Inner glow */
+}
+
+/* Mapbox Overrides for Dark Mode */
+.mapboxgl-ctrl-bottom-right {
+    bottom: 40px !important;
+    right: 12px !important;
+}
+.mapboxgl-ctrl-logo,
+.mapboxgl-ctrl-attrib {
+    opacity: 0.3; /* Dim the logos to reduce visual noise */
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+.animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+/* Mapbox Popup Overrides */
+.mapboxgl-popup.charger-station-popup .mapboxgl-popup-content {
+    background: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+.mapboxgl-popup.charger-station-popup .mapboxgl-popup-tip {
+    display: none !important;
+}
+
+.mapboxgl-popup.charger-station-popup.no-tip .mapboxgl-popup-tip {
+    display: none !important;
+}

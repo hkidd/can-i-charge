@@ -1,0 +1,20 @@
+{
+  "crons": [{
+    "path": "/api/cron/daily-refresh",
+    "schedule": "0 3 * * *"
+  }],
+  "functions": {
+    "app/api/cron/daily-refresh/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/refresh-data/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/aggregate-counties/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/aggregate-zips/route.ts": {
+      "maxDuration": 300
+    }
+  }
+}

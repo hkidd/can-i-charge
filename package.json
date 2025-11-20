@@ -1,0 +1,42 @@
+{
+  "name": "can-i-charge",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "ingest-vmt": "node scripts/ingest-vmt-data.mjs",
+    "ingest-vmt-arcgis": "node scripts/ingest-vmt-arcgis.mjs"
+  },
+  "dependencies": {
+    "@sentry/nextjs": "^10.25.0",
+    "@supabase/supabase-js": "^2.81.1",
+    "mapbox-gl": "^3.16.0",
+    "next": "16.0.3",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "us-atlas": "^3.0.1",
+    "xlsx": "^0.18.5",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/mapbox-gl": "^3.4.1",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/topojson-client": "^3.1.5",
+    "@types/topojson-specification": "^1.0.5",
+    "dotenv": "^17.2.3",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.3",
+    "supabase": "^2.58.5",
+    "tailwindcss": "^4",
+    "topojson-client": "^3.1.0",
+    "topojson-server": "^3.0.1",
+    "topojson-simplify": "^3.0.3",
+    "typescript": "^5"
+  }
+}
