@@ -1,6 +1,7 @@
 'use client'
 
 import Map from '@/components/Map'
+import RivianBadge from '@/components/RivianBadge'
 
 export default function HomePage() {
     return (
@@ -16,6 +17,7 @@ export default function HomePage() {
 
             <div className='w-screen h-screen fixed top-0 left-0 bg-background'>
                 <Map />
+                <RivianBadge />
             </div>
         </>
     )

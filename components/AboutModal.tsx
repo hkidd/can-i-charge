@@ -118,58 +118,120 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                         </h2>
                         <div className='p-8 rounded-3xl bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border border-cyan-500/20 mb-8'>
                             <p className='text-white/70 text-lg leading-relaxed mb-6'>
-                                Our scoring algorithm evaluates EV readiness by analyzing multiple data sources to provide comprehensive infrastructure assessments.
+                                Our scoring algorithm evaluates EV readiness by
+                                analyzing multiple data sources to provide
+                                comprehensive infrastructure assessments.
                             </p>
                             <div className='grid md:grid-cols-2 gap-6'>
                                 {/* Population Density */}
                                 <div className='flex items-start gap-4'>
                                     <div className='w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center text-green-400 flex-shrink-0'>
-                                        <svg className='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                                            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' />
+                                        <svg
+                                            className='w-5 h-5'
+                                            fill='none'
+                                            stroke='currentColor'
+                                            viewBox='0 0 24 24'
+                                        >
+                                            <path
+                                                strokeLinecap='round'
+                                                strokeLinejoin='round'
+                                                strokeWidth={2}
+                                                d='M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z'
+                                            />
                                         </svg>
                                     </div>
                                     <div>
-                                        <h4 className='text-white font-semibold mb-1'>Population Density</h4>
-                                        <p className='text-white/50 text-sm'>US Census data determines potential EV demand</p>
+                                        <h4 className='text-white font-semibold mb-1'>
+                                            Population Density
+                                        </h4>
+                                        <p className='text-white/50 text-sm'>
+                                            US Census data determines potential
+                                            EV demand
+                                        </p>
                                     </div>
                                 </div>
 
                                 {/* Station Density */}
                                 <div className='flex items-start gap-4'>
                                     <div className='w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 flex-shrink-0'>
-                                        <svg className='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                                            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 10V3L4 14h7v7l9-11h-7z' />
+                                        <svg
+                                            className='w-5 h-5'
+                                            fill='none'
+                                            stroke='currentColor'
+                                            viewBox='0 0 24 24'
+                                        >
+                                            <path
+                                                strokeLinecap='round'
+                                                strokeLinejoin='round'
+                                                strokeWidth={2}
+                                                d='M13 10V3L4 14h7v7l9-11h-7z'
+                                            />
                                         </svg>
                                     </div>
                                     <div>
-                                        <h4 className='text-white font-semibold mb-1'>Station & Port Density</h4>
-                                        <p className='text-white/50 text-sm'>Both station count and total charging ports are weighted</p>
+                                        <h4 className='text-white font-semibold mb-1'>
+                                            Station & Port Density
+                                        </h4>
+                                        <p className='text-white/50 text-sm'>
+                                            Both station count and total
+                                            charging ports are weighted
+                                        </p>
                                     </div>
                                 </div>
 
                                 {/* Traffic Patterns */}
                                 <div className='flex items-start gap-4'>
                                     <div className='w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 flex-shrink-0'>
-                                        <svg className='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                                            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7' />
+                                        <svg
+                                            className='w-5 h-5'
+                                            fill='none'
+                                            stroke='currentColor'
+                                            viewBox='0 0 24 24'
+                                        >
+                                            <path
+                                                strokeLinecap='round'
+                                                strokeLinejoin='round'
+                                                strokeWidth={2}
+                                                d='M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7'
+                                            />
                                         </svg>
                                     </div>
                                     <div>
-                                        <h4 className='text-white font-semibold mb-1'>Vehicle Miles Traveled</h4>
-                                        <p className='text-white/50 text-sm'>Regional driving patterns indicate charging demand</p>
+                                        <h4 className='text-white font-semibold mb-1'>
+                                            Vehicle Miles Traveled
+                                        </h4>
+                                        <p className='text-white/50 text-sm'>
+                                            Regional driving patterns indicate
+                                            charging demand
+                                        </p>
                                     </div>
                                 </div>
 
                                 {/* Charger Types */}
                                 <div className='flex items-start gap-4'>
                                     <div className='w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-400 flex-shrink-0'>
-                                        <svg className='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                                            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 011-1h1a2 2 0 100-4H7a1 1 0 01-1-1V7a1 1 0 011-1h3a1 1 0 001-1V4z' />
+                                        <svg
+                                            className='w-5 h-5'
+                                            fill='none'
+                                            stroke='currentColor'
+                                            viewBox='0 0 24 24'
+                                        >
+                                            <path
+                                                strokeLinecap='round'
+                                                strokeLinejoin='round'
+                                                strokeWidth={2}
+                                                d='M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 011-1h1a2 2 0 100-4H7a1 1 0 01-1-1V7a1 1 0 011-1h3a1 1 0 001-1V4z'
+                                            />
                                         </svg>
                                     </div>
                                     <div>
-                                        <h4 className='text-white font-semibold mb-1'>Connector Compatibility</h4>
-                                        <p className='text-white/50 text-sm'>Tesla/NACS, CCS, J1772, and CHAdeMO availability</p>
+                                        <h4 className='text-white font-semibold mb-1'>
+                                            Connector Compatibility
+                                        </h4>
+                                        <p className='text-white/50 text-sm'>
+                                            Tesla/NACS, CCS, J1772, and CHAdeMO
+                                            availability
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -186,13 +248,30 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                             <div className='p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-blue-500/30 transition-colors group'>
                                 <div className='flex items-start gap-5'>
                                     <div className='w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform'>
-                                        <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                                            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={1.5} d='M13 10V3L4 14h7v7l9-11h-7z' />
+                                        <svg
+                                            className='w-6 h-6'
+                                            fill='none'
+                                            stroke='currentColor'
+                                            viewBox='0 0 24 24'
+                                        >
+                                            <path
+                                                strokeLinecap='round'
+                                                strokeLinejoin='round'
+                                                strokeWidth={1.5}
+                                                d='M13 10V3L4 14h7v7l9-11h-7z'
+                                            />
                                         </svg>
                                     </div>
                                     <div>
-                                        <h3 className='text-lg font-bold text-white mb-2'>84,000+ Charging Stations</h3>
-                                        <p className='text-sm text-white/50 leading-relaxed'>Comprehensive NREL database coverage across all 50 states, with daily updates for new installations and network changes.</p>
+                                        <h3 className='text-lg font-bold text-white mb-2'>
+                                            84,000+ Charging Stations
+                                        </h3>
+                                        <p className='text-sm text-white/50 leading-relaxed'>
+                                            Comprehensive NREL database coverage
+                                            across all 50 states, with daily
+                                            updates for new installations and
+                                            network changes.
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -201,13 +280,30 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                             <div className='p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-green-500/30 transition-colors group'>
                                 <div className='flex items-start gap-5'>
                                     <div className='w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform'>
-                                        <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                                            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={1.5} d='M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' />
+                                        <svg
+                                            className='w-6 h-6'
+                                            fill='none'
+                                            stroke='currentColor'
+                                            viewBox='0 0 24 24'
+                                        >
+                                            <path
+                                                strokeLinecap='round'
+                                                strokeLinejoin='round'
+                                                strokeWidth={1.5}
+                                                d='M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'
+                                            />
                                         </svg>
                                     </div>
                                     <div>
-                                        <h3 className='text-lg font-bold text-white mb-2'>Multi-Scale Analysis</h3>
-                                        <p className='text-sm text-white/50 leading-relaxed'>State, county, and ZIP code level aggregations provide insights from regional planning to neighborhood-specific EV readiness.</p>
+                                        <h3 className='text-lg font-bold text-white mb-2'>
+                                            Multi-Scale Analysis
+                                        </h3>
+                                        <p className='text-sm text-white/50 leading-relaxed'>
+                                            State, county, and ZIP code level
+                                            aggregations provide insights from
+                                            regional planning to
+                                            neighborhood-specific EV readiness.
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -216,13 +312,30 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                             <div className='p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-yellow-500/30 transition-colors group'>
                                 <div className='flex items-start gap-5'>
                                     <div className='w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center text-yellow-500 group-hover:scale-110 transition-transform'>
-                                        <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                                            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={1.5} d='M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707' />
+                                        <svg
+                                            className='w-6 h-6'
+                                            fill='none'
+                                            stroke='currentColor'
+                                            viewBox='0 0 24 24'
+                                        >
+                                            <path
+                                                strokeLinecap='round'
+                                                strokeLinejoin='round'
+                                                strokeWidth={1.5}
+                                                d='M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707'
+                                            />
                                         </svg>
                                     </div>
                                     <div>
-                                        <h3 className='text-lg font-bold text-white mb-2'>Opportunity Mode</h3>
-                                        <p className='text-sm text-white/50 leading-relaxed'>Identifies high-population areas with limited charging infrastructure - prime locations for new EV charging investments.</p>
+                                        <h3 className='text-lg font-bold text-white mb-2'>
+                                            Opportunity Mode
+                                        </h3>
+                                        <p className='text-sm text-white/50 leading-relaxed'>
+                                            Identifies high-population areas
+                                            with limited charging infrastructure
+                                            - prime locations for new EV
+                                            charging investments.
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -264,7 +377,42 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                             className='inline-flex items-center gap-3 px-8 py-4 bg-[#FFDD00] text-black rounded-xl font-bold hover:shadow-[0_0_20px_#FFDD00] transition-all transform hover:-translate-y-1'
                         >
                             <span>☕</span>
-                            <span>Buy me a coffee</span>
+                            <span>Buy Me a Coffee</span>
+                        </Link>
+                    </div>
+
+                    {/* Rivian Referral Section */}
+                    <div className='mb-20 p-8 rounded-3xl bg-gradient-to-br from-emerald-500/5 to-teal-500/5 border border-emerald-500/20 text-center relative overflow-hidden'>
+                        <div className='absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500'></div>
+
+                        <div className='w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mx-auto mb-4'>
+                            <svg
+                                className='w-9 h-9 text-white'
+                                fill='none'
+                                stroke='currentColor'
+                                viewBox='0 0 24 24'
+                            >
+                                <circle cx='12' cy='12' r='10' />
+                                <polygon points='16.24,7.76 14.12,14.12 7.76,16.24 9.88,9.88' />
+                            </svg>
+                        </div>
+
+                        <h3 className='text-2xl font-bold text-white mb-3'>
+                            Considering a Rivian EV?
+                        </h3>
+                        <p className='text-white/60 mb-8 max-w-md mx-auto font-light'>
+                            Planning to order a Rivian R1T or R1S? Use my
+                            referral link and we&apos;ll both receive rewards
+                            when you take delivery!
+                        </p>
+
+                        <Link
+                            href='https://rivian.com/configurations/list?reprCode=HARRISON19045910'
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            className='inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-bold hover:shadow-[0_0_25px_rgba(16,185,129,0.3)] transition-all transform hover:-translate-y-1'
+                        >
+                            <span>Shop Rivian with Referral</span>
                         </Link>
                     </div>
 
@@ -276,10 +424,21 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
 
                         {feedbackSuccess && (
                             <div className='mb-6 p-4 rounded border border-green-500/30 bg-green-500/10 text-green-400 text-sm flex items-center gap-2'>
-                                <svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                                    <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M5 13l4 4L19 7' />
+                                <svg
+                                    className='w-4 h-4'
+                                    fill='none'
+                                    stroke='currentColor'
+                                    viewBox='0 0 24 24'
+                                >
+                                    <path
+                                        strokeLinecap='round'
+                                        strokeLinejoin='round'
+                                        strokeWidth={2}
+                                        d='M5 13l4 4L19 7'
+                                    />
                                 </svg>
-                                Thank you for your feedback! I read every message.
+                                Thank you for your feedback! I read every
+                                message.
                             </div>
                         )}
                         {feedbackError && (
