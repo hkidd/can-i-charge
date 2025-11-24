@@ -377,7 +377,7 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                             className='inline-flex items-center gap-3 px-8 py-4 bg-[#FFDD00] text-black rounded-xl font-bold hover:shadow-[0_0_20px_#FFDD00] transition-all transform hover:-translate-y-1'
                         >
                             <span>☕</span>
-                            <span>Buy Me a Coffee</span>
+                            <span>Buy me a coffee</span>
                         </Link>
                     </div>
 
@@ -412,7 +412,7 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
                             rel='noopener noreferrer'
                             className='inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-bold hover:shadow-[0_0_25px_rgba(16,185,129,0.3)] transition-all transform hover:-translate-y-1'
                         >
-                            <span>Shop Rivian with Referral</span>
+                            <span>Shop Rivian with referral</span>
                         </Link>
                     </div>
 
