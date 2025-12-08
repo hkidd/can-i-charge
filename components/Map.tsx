@@ -33,7 +33,7 @@ export default function Map() {
         showTesla: true,
         showCCS: true,
         opportunityMode: false,
-        usePortWeighting: false
+        usePortWeighting: true
     })
     const chargerFiltersRef = useRef(chargerFilters)
     const [showMobileFilters, setShowMobileFilters] = useState(false)
