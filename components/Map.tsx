@@ -397,7 +397,7 @@ export default function Map() {
                             ></div>
                             <span className='text-foreground/90'>
                                 {chargerFilters.opportunityMode
-                                    ? 'High Opportunity'
+                                    ? 'High'
                                     : 'Excellent'}
                             </span>
                         </div>
@@ -411,7 +411,7 @@ export default function Map() {
                             ></div>
                             <span className='text-foreground/90'>
                                 {chargerFilters.opportunityMode
-                                    ? 'Med Opportunity'
+                                    ? 'Med'
                                     : 'Good'}
                             </span>
                         </div>
@@ -425,7 +425,7 @@ export default function Map() {
                             ></div>
                             <span className='text-foreground/90'>
                                 {chargerFilters.opportunityMode
-                                    ? 'Low Opportunity'
+                                    ? 'Low'
                                     : 'Poor'}
                             </span>
                         </div>
