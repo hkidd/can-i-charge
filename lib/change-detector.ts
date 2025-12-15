@@ -24,6 +24,13 @@ export interface RegionChanges {
  */
 export class ChangeDetector {
     /**
+     * Clean ZIP code to match staging format (5-digit only)
+     */
+    private static cleanZipCode(zip: string): string | null {
+        const cleanZip = zip.split('-')[0]?.trim()
+        return cleanZip && cleanZip.length === 5 ? cleanZip : null
+    }
+    /**
      * Compare current stations with previous data to detect changes
      */
     static async detectChanges(useStaging: boolean = true): Promise<RegionChanges> {
@@ -74,7 +81,10 @@ export class ChangeDetector {
                 })
                 
                 affectedRegions.states.add(station.state)
-                if (station.zip) affectedRegions.zips.add(station.zip)
+                if (station.zip) {
+                    const cleanZip = this.cleanZipCode(station.zip)
+                    if (cleanZip) affectedRegions.zips.add(cleanZip)
+                }
             }
         }
         
@@ -92,7 +102,10 @@ export class ChangeDetector {
                 })
                 
                 affectedRegions.states.add(station.state)
-                if (station.zip) affectedRegions.zips.add(station.zip)
+                if (station.zip) {
+                    const cleanZip = this.cleanZipCode(station.zip)
+                    if (cleanZip) affectedRegions.zips.add(cleanZip)
+                }
             }
         }
         
@@ -112,14 +125,18 @@ export class ChangeDetector {
                 })
                 
                 affectedRegions.states.add(current.state)
-                if (current.zip) affectedRegions.zips.add(current.zip)
+                if (current.zip) {
+                    const cleanZip = this.cleanZipCode(current.zip)
+                    if (cleanZip) affectedRegions.zips.add(cleanZip)
+                }
                 
                 // If station moved states/zips, mark old ones too
                 if (previous.state !== current.state) {
                     affectedRegions.states.add(previous.state)
                 }
                 if (previous.zip !== current.zip && previous.zip) {
-                    affectedRegions.zips.add(previous.zip)
+                    const cleanZip = this.cleanZipCode(previous.zip)
+                    if (cleanZip) affectedRegions.zips.add(cleanZip)
                 }
             }
         }
