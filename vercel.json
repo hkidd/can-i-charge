@@ -5,7 +5,7 @@
   }],
   "functions": {
     "app/api/cron/daily-refresh/route.ts": {
-      "maxDuration": 900
+      "maxDuration": 300
     },
     "app/api/refresh-data/route.ts": {
       "maxDuration": 300
@@ -17,7 +17,7 @@
       "maxDuration": 300
     },
     "app/api/smart-update/route.ts": {
-      "maxDuration": 900
+      "maxDuration": 300
     }
   }
 }
