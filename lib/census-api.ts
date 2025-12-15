@@ -169,7 +169,7 @@ export async function fetchCountyPopulation(
     }
 }
 
-// Batch function for ZIP populations
+// Parallel function for ZIP populations - uses individual calls but in parallel for speed + accuracy
 export async function fetchZipPopulationBatch(zipCodes: string[]): Promise<Map<string, number>> {
     const results = new Map<string, number>()
     
@@ -181,73 +181,51 @@ export async function fetchZipPopulationBatch(zipCodes: string[]): Promise<Map<s
         return results
     }
 
-    // Process in smaller chunks to avoid URL length limits
-    const chunkSize = 50
+    // Process in parallel chunks to balance speed vs rate limiting
+    const chunkSize = 10 // Smaller chunks for parallel processing
     
     for (let i = 0; i < zipCodes.length; i += chunkSize) {
         const chunk = zipCodes.slice(i, i + chunkSize)
         
+        console.log(`Fetching population for ${chunk.length} ZIP codes in parallel...`)
+        
         try {
-            // Add delay between chunks to avoid rate limiting
-            if (i > 0) await delay(100)
-            
-            // Build URL for multiple ZIP codes
-            const zipQuery = chunk.join(',')
-            const url = `https://api.census.gov/data/2022/acs/acs5?get=B01003_001E,zip%20code%20tabulation%20area&for=zip%20code%20tabulation%20area:${zipQuery}&key=${CENSUS_API_KEY}`
-            
-            console.log(`Fetching population for ${chunk.length} ZIP codes...`)
-            
-            const response = await fetch(url, {
-                headers: {
-                    'User-Agent': 'CanICharge/1.0'
+            // Execute individual calls in parallel for this chunk
+            const promises = chunk.map(async (zipCode) => {
+                try {
+                    const population = await fetchZipPopulation(zipCode)
+                    return { zipCode, population }
+                } catch (error) {
+                    // Individual ZIP failed, use estimate
+                    return { zipCode, population: estimateZipPopulation() }
                 }
             })
-
-            if (!response.ok) {
-                throw new Error(`Census API error: ${response.status}`)
-            }
-
-            const text = await response.text()
-            if (!text || text.trim() === '') {
-                throw new Error('Empty Census response')
-            }
-
-            const data = JSON.parse(text)
             
-            if (data && Array.isArray(data) && data.length > 0) {
-                // Skip header row and process data rows
-                for (let j = 1; j < data.length; j++) {
-                    const row = data[j]
-                    if (row && row.length >= 2) {
-                        const population = parseInt(row[0])
-                        const zipCode = row[1]
-                        
-                        if (!isNaN(population) && population > 0 && zipCode) {
-                            results.set(zipCode, population)
-                        }
-                    }
-                }
-            }
+            // Wait for all parallel calls to complete
+            const chunkResults = await Promise.all(promises)
             
-            console.log(`✓ Fetched ${results.size} valid populations from ${chunk.length} ZIP codes`)
+            // Store results
+            chunkResults.forEach(({ zipCode, population }) => {
+                results.set(zipCode, population)
+            })
+            
+            console.log(`✓ Completed ${chunk.length} ZIP population lookups`)
+            
+            // Small delay between chunks to avoid overwhelming the API
+            if (i + chunkSize < zipCodes.length) {
+                await delay(200)
+            }
             
         } catch (error) {
-            console.warn(`Census batch API failed for chunk, using estimates:`, error instanceof Error ? error.message : 'Unknown error')
+            console.warn(`Parallel Census calls failed for chunk, using estimates:`, error instanceof Error ? error.message : 'Unknown error')
             // Fall back to estimates for this chunk
             chunk.forEach(zip => {
                 if (!results.has(zip)) {
-                    results.set(zip, Math.floor(Math.random() * 40000) + 5000)
+                    results.set(zip, estimateZipPopulation())
                 }
             })
         }
     }
-    
-    // Ensure all requested ZIP codes have values (fill missing with estimates)
-    zipCodes.forEach(zip => {
-        if (!results.has(zip)) {
-            results.set(zip, estimateZipPopulation())
-        }
-    })
     
     return results
 }
