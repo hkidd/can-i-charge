@@ -33,7 +33,7 @@ export default function Map() {
         showTesla: true,
         showCCS: true,
         opportunityMode: false,
-        usePortWeighting: false
+        usePortWeighting: true
     })
     const chargerFiltersRef = useRef(chargerFilters)
     const [showMobileFilters, setShowMobileFilters] = useState(false)
@@ -382,7 +382,7 @@ export default function Map() {
             {/* --- LEGEND --- */}
             <div className='absolute bottom-8 left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0 z-10 w-[260px]'>
                 <div className='hud-panel rounded-full px-6 py-3'>
-                    <div className='flex items-center gap-6 text-xs font-medium'>
+                    <div className='flex items-center justify-center gap-6 text-xs font-medium'>
                         <div className='flex items-center gap-2'>
                             <div
                                 className={`w-2 h-2 rounded-full ${
@@ -393,7 +393,7 @@ export default function Map() {
                             ></div>
                             <span className='text-foreground/90'>
                                 {chargerFilters.opportunityMode
-                                    ? 'High Opportunity'
+                                    ? 'High'
                                     : 'Excellent'}
                             </span>
                         </div>
@@ -407,7 +407,7 @@ export default function Map() {
                             ></div>
                             <span className='text-foreground/90'>
                                 {chargerFilters.opportunityMode
-                                    ? 'Med Opportunity'
+                                    ? 'Med'
                                     : 'Good'}
                             </span>
                         </div>
@@ -421,7 +421,7 @@ export default function Map() {
                             ></div>
                             <span className='text-foreground/90'>
                                 {chargerFilters.opportunityMode
-                                    ? 'Low Opportunity'
+                                    ? 'Low'
                                     : 'Poor'}
                             </span>
                         </div>

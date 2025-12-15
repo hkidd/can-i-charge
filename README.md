@@ -2,7 +2,8 @@
 
 **An intelligent EV infrastructure analysis platform that provides instant EV readiness scores for any US address.**
 
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-blue?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-Database-green?logo=supabase)](https://supabase.com/)
 [![Mapbox](https://img.shields.io/badge/Mapbox-Maps-blue?logo=mapbox)](https://www.mapbox.com/)
@@ -48,9 +49,9 @@
 ## 🏗️ **Technical Architecture**
 
 ### **Frontend Stack**
-- **Next.js 14** with App Router
+- **Next.js 16** with App Router and React 19
 - **TypeScript** for type safety
-- **Tailwind CSS** with custom design system
+- **Tailwind CSS v4** with custom design system
 - **Mapbox GL JS** for interactive maps
 - **Custom UI Components** with glass-morphism design
 
