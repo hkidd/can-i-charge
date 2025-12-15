@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import Toggle from './Toggle' // Adjust path as needed (e.g., '@/components/ui/Toggle')
+import Toggle from './Toggle'
 
 interface MapFiltersProps {
     filters: {

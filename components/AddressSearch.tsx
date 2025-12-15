@@ -55,7 +55,6 @@ export default function AddressSearch({
         // Fly map to location
         onLocationSelect(lng, lat, address)
 
-        // Fetch EV score logic remains the same...
         setLoading(true)
         try {
             const response = await fetch(
@@ -71,8 +70,7 @@ export default function AddressSearch({
             setShowScoreCard(true)
         } catch (error) {
             console.error('Error fetching EV score:', error)
-            // In a real app, use a toast here instead of alert
-            alert('Could not calculate EV score for this location')
+            // TODO: Handle error (e.g., show toast)
         } finally {
             setLoading(false)
         }
@@ -122,7 +120,7 @@ export default function AddressSearch({
                         '
                     />
 
-                    {/* Loading Spinner (Neon Style) */}
+                    {/* Loading Spinner */}
                     {loading && (
                         <div className='absolute right-4 top-1/2 -translate-y-1/2'>
                             <div className='w-5 h-5 border-2 border-neon-mid border-t-transparent rounded-full animate-spin shadow-[0_0_10px_var(--neon-mid)]'></div>
@@ -155,7 +153,7 @@ export default function AddressSearch({
                     )}
                 </div>
 
-                {/* Suggestions Dropdown - The "HUD" Style */}
+                {/* Suggestions Dropdown */}
                 {suggestions.length > 0 && (
                     <div className='absolute top-full mt-2 w-full hud-panel rounded-xl overflow-hidden z-50 animate-slide-up'>
                         {suggestions.map((suggestion, index) => (

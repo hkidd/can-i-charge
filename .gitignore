@@ -65,5 +65,3 @@ server.log
 /app/api/aggregate-zips/
 /app/api/aggregate-zips-optimized/
 /app/api/fetch-stations/
-/app/api/refresh-data/
-/app/api/smart-update/

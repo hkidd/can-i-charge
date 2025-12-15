@@ -43,7 +43,6 @@ export default function Map() {
         chargerFiltersRef.current = chargerFilters
     }, [chargerFilters])
 
-    // ... [Keep your existing setupInteractions and loadMapData functions exactly as they are] ...
     const setupInteractions = useCallback((layerType: string) => {
         if (!map.current) return
         const layerId =
@@ -74,7 +73,6 @@ export default function Map() {
                 })
             }
         })
-        // ... keep mobile click handlers ...
     }, [])
 
     const loadMapData = useCallback(async () => {
@@ -128,7 +126,6 @@ export default function Map() {
         if (map.current) return
 
         try {
-            // FORCE DARK MODE for the futuristic aesthetic
             map.current = new mapboxgl.Map({
                 container: mapContainer.current!,
                 style: 'mapbox://styles/mapbox/dark-v11', // Always dark
@@ -202,7 +199,6 @@ export default function Map() {
         }
     }
 
-    // --- NEW COLOR LOGIC (Energy Spectrum) ---
     const getScoreColor = (score: number) => {
         if (score >= 80) return 'var(--neon-high)' // Green/Emerald
         if (score >= 50) return 'var(--neon-mid)' // Cyan
@@ -383,7 +379,7 @@ export default function Map() {
 
             <SupportBanner />
 
-            {/* --- LEGEND (UPDATED TO SPECTRUM) --- */}
+            {/* --- LEGEND --- */}
             <div className='absolute bottom-8 left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0 z-10 w-[260px]'>
                 <div className='hud-panel rounded-full px-6 py-3'>
                     <div className='flex items-center gap-6 text-xs font-medium'>
@@ -445,7 +441,7 @@ export default function Map() {
             />
             <ToastContainer messages={messages} onDismiss={dismissToast} />
 
-            {/* Mobile Filters Modal Logic (unchanged structure, just styling) */}
+            {/* Mobile Filters Modal */}
             {showMobileFilters && (
                 <>
                     <div

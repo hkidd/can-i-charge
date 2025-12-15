@@ -7,24 +7,71 @@ import { calculateWeightedEVScore } from './aggregation-optimized'
 // Utility function to get state code from FIPS
 function getStateCodeFromFIPS(fips: string): string | null {
     const fipsToState: Record<string, string> = {
-        '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR', '06': 'CA',
-        '08': 'CO', '09': 'CT', '10': 'DE', '12': 'FL', '13': 'GA',
-        '15': 'HI', '16': 'ID', '17': 'IL', '18': 'IN', '19': 'IA',
-        '20': 'KS', '21': 'KY', '22': 'LA', '23': 'ME', '24': 'MD',
-        '25': 'MA', '26': 'MI', '27': 'MN', '28': 'MS', '29': 'MO',
-        '30': 'MT', '31': 'NE', '32': 'NV', '33': 'NH', '34': 'NJ',
-        '35': 'NM', '36': 'NY', '37': 'NC', '38': 'ND', '39': 'OH',
-        '40': 'OK', '41': 'OR', '42': 'PA', '44': 'RI', '45': 'SC',
-        '46': 'SD', '47': 'TN', '48': 'TX', '49': 'UT', '50': 'VT',
-        '51': 'VA', '53': 'WA', '54': 'WV', '55': 'WI', '56': 'WY'
+        '01': 'AL',
+        '02': 'AK',
+        '04': 'AZ',
+        '05': 'AR',
+        '06': 'CA',
+        '08': 'CO',
+        '09': 'CT',
+        '10': 'DE',
+        '12': 'FL',
+        '13': 'GA',
+        '15': 'HI',
+        '16': 'ID',
+        '17': 'IL',
+        '18': 'IN',
+        '19': 'IA',
+        '20': 'KS',
+        '21': 'KY',
+        '22': 'LA',
+        '23': 'ME',
+        '24': 'MD',
+        '25': 'MA',
+        '26': 'MI',
+        '27': 'MN',
+        '28': 'MS',
+        '29': 'MO',
+        '30': 'MT',
+        '31': 'NE',
+        '32': 'NV',
+        '33': 'NH',
+        '34': 'NJ',
+        '35': 'NM',
+        '36': 'NY',
+        '37': 'NC',
+        '38': 'ND',
+        '39': 'OH',
+        '40': 'OK',
+        '41': 'OR',
+        '42': 'PA',
+        '44': 'RI',
+        '45': 'SC',
+        '46': 'SD',
+        '47': 'TN',
+        '48': 'TX',
+        '49': 'UT',
+        '50': 'VT',
+        '51': 'VA',
+        '53': 'WA',
+        '54': 'WV',
+        '55': 'WI',
+        '56': 'WY'
     }
     return fipsToState[fips] || null
 }
 
 // Calculate polygon bounds
-function getPolygonBounds(coordinates: any): { north: number; south: number; east: number; west: number } {
-    let minLat = Infinity, maxLat = -Infinity
-    let minLng = Infinity, maxLng = -Infinity
+function getPolygonBounds(coordinates: any): {
+    north: number
+    south: number
+    east: number
+    west: number
+} {
+    let minLat = Infinity,
+        maxLat = -Infinity
+    let minLng = Infinity,
+        maxLng = -Infinity
 
     const processCoordinate = (coord: number[]) => {
         const [lng, lat] = coord
@@ -50,11 +97,18 @@ function getPolygonBounds(coordinates: any): { north: number; south: number; eas
 }
 
 // Check if a point is roughly within bounds (with buffer)
-function isInBounds(lat: number, lng: number, bounds: any, buffer: number = 0.05): boolean {
-    return lat >= bounds.south - buffer && 
-           lat <= bounds.north + buffer && 
-           lng >= bounds.west - buffer && 
-           lng <= bounds.east + buffer
+function isInBounds(
+    lat: number,
+    lng: number,
+    bounds: any,
+    buffer: number = 0.05
+): boolean {
+    return (
+        lat >= bounds.south - buffer &&
+        lat <= bounds.north + buffer &&
+        lng >= bounds.west - buffer &&
+        lng <= bounds.east + buffer
+    )
 }
 
 export async function generateCountyDataOptimized(
@@ -87,15 +141,19 @@ export async function generateCountyDataOptimized(
             topology.objects.counties
         )
 
-        console.log(`📍 Processing ${(countiesGeo as any).features.length} counties...`)
+        console.log(
+            `📍 Processing ${(countiesGeo as any).features.length} counties...`
+        )
 
-        // OPTIMIZATION: Get ALL stations in ONE query!
+        // Get ALL stations in one query
         console.log('⚡ Fetching ALL charging stations in ONE query...')
         const { data: allStations, error } = await supabaseAdmin
             .from(stationsTable)
-            .select('latitude, longitude, state, charger_type_detailed, ev_connector_types, num_ports')
+            .select(
+                'latitude, longitude, state, charger_type_detailed, ev_connector_types, num_ports'
+            )
             .range(0, 999999)
-        
+
         if (error) throw error
         console.log(`✅ Fetched ${allStations?.length || 0} stations`)
 
@@ -105,19 +163,19 @@ export async function generateCountyDataOptimized(
         const totalCounties = (countiesGeo as any).features.length
 
         console.log('🔄 Processing counties with in-memory calculations...')
-        
+
         for (const feature of (countiesGeo as any).features) {
             const countyName = feature.properties.name
             const stateId = feature.id.toString().substring(0, 2)
             const stateCode = getStateCodeFromFIPS(stateId)
-            
+
             if (!stateCode) continue
 
             const bounds = getPolygonBounds(feature.geometry.coordinates)
             const centerLat = (bounds.north + bounds.south) / 2
             const centerLng = (bounds.east + bounds.west) / 2
 
-            // Count chargers and ports in this county (in memory - FAST!)
+            // Count chargers and ports in this county (in memory)
             let dcfastCount = 0
             let level2Count = 0
             let level1Count = 0
@@ -133,12 +191,13 @@ export async function generateCountyDataOptimized(
 
             for (const station of allStations || []) {
                 // Quick bounds check first
-                if (station.state === stateCode && 
-                    isInBounds(station.latitude, station.longitude, bounds)) {
-                    
+                if (
+                    station.state === stateCode &&
+                    isInBounds(station.latitude, station.longitude, bounds)
+                ) {
                     const numPorts = station.num_ports || 1
                     totalPorts += numPorts
-                    
+
                     // Count by charger level
                     switch (station.charger_type_detailed) {
                         case 'dcfast':
@@ -151,21 +210,24 @@ export async function generateCountyDataOptimized(
                             level1Count++
                             break
                     }
-                    
+
                     // Count by connector type (stations and ports)
                     const connectorTypes = station.ev_connector_types || []
                     if (connectorTypes.includes('TESLA')) {
                         teslaCount++
                         teslaPorts += numPorts
                     }
-                    const hasNonTesla = connectorTypes.some((type: string) => 
+                    const hasNonTesla = connectorTypes.some((type: string) =>
                         ['J1772COMBO', 'J1772', 'CHADEMO'].includes(type)
                     )
                     if (hasNonTesla) {
                         ccsCount++
                         ccsPorts += numPorts
                     }
-                    if (connectorTypes.includes('J1772') && !connectorTypes.includes('J1772COMBO')) {
+                    if (
+                        connectorTypes.includes('J1772') &&
+                        !connectorTypes.includes('J1772COMBO')
+                    ) {
                         j1772Count++
                         j1772Ports += numPorts
                     }
@@ -184,11 +246,18 @@ export async function generateCountyDataOptimized(
             const fullFips = feature.id.toString().padStart(5, '0')
             const stateFips = fullFips.substring(0, 2)
             const countyFips = fullFips.substring(2, 5)
-            const population = await fetchCountyPopulation(stateFips, countyFips)
+            const population = await fetchCountyPopulation(
+                stateFips,
+                countyFips
+            )
 
             const needScore = calculateNeedScore(population, totalChargers)
-            const weightedChargerCount = dcfastCount * 1.0 + level2Count * 0.7 + level1Count * 0.3
-            const score = calculateWeightedEVScore(weightedChargerCount, population)
+            const weightedChargerCount =
+                dcfastCount * 1.0 + level2Count * 0.7 + level1Count * 0.3
+            const score = calculateWeightedEVScore(
+                weightedChargerCount,
+                population
+            )
 
             countyData.push({
                 county_name: countyName,
@@ -215,12 +284,17 @@ export async function generateCountyDataOptimized(
             })
 
             processedCount++
-            
+
             // Progress update every 100 counties
             if (processedCount % 100 === 0) {
-                const percentage = ((processedCount / totalCounties) * 100).toFixed(1)
+                const percentage = (
+                    (processedCount / totalCounties) *
+                    100
+                ).toFixed(1)
                 const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
-                console.log(`Progress: ${processedCount}/${totalCounties} (${percentage}%) - ${elapsed}s`)
+                console.log(
+                    `Progress: ${processedCount}/${totalCounties} (${percentage}%) - ${elapsed}s`
+                )
             }
 
             // Batch insert every 500 counties to avoid memory issues
@@ -228,9 +302,9 @@ export async function generateCountyDataOptimized(
                 const { error: insertError } = await supabaseAdmin
                     .from(tableName)
                     .insert(countyData)
-                
+
                 if (insertError) throw insertError
-                
+
                 countyData.length = 0 // Clear array
             }
         }
@@ -241,12 +315,14 @@ export async function generateCountyDataOptimized(
             const { error: insertError } = await supabaseAdmin
                 .from(tableName)
                 .insert(countyData)
-            
+
             if (insertError) throw insertError
         }
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(2)
-        console.log(`✅ County generation complete in ${duration} seconds (was ~900-1200s)`)
+        console.log(
+            `✅ County generation complete in ${duration} seconds (was ~900-1200s)`
+        )
         console.log(`📊 Processed ${processedCount} counties`)
 
         return processedCount

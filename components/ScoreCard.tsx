@@ -29,10 +29,10 @@ interface ScoreCardProps {
 
 export default function ScoreCard({ data, onClose }: ScoreCardProps) {
     const [showDCFast, setShowDCFast] = useState(false)
-    
+
     const getNeonColorVar = (s: number) => {
         if (s >= 80) return 'var(--neon-high)'
-        if (s >= 60) return 'var(--neon-mid)' // Adjusted threshold slightly
+        if (s >= 60) return 'var(--neon-mid)'
         return 'var(--neon-low)'
     }
 
@@ -40,7 +40,7 @@ export default function ScoreCard({ data, onClose }: ScoreCardProps) {
     const scoreLabel = getScoreLabel(data.score)
 
     // SVG Math
-    const radius = 65 // Increased radius slightly for breathing room
+    const radius = 65
     const circumference = 2 * Math.PI * radius
     const strokeDashoffset = circumference - (data.score / 100) * circumference
 
@@ -60,7 +60,6 @@ export default function ScoreCard({ data, onClose }: ScoreCardProps) {
         } else {
             // Fallback: Copy to clipboard
             navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`)
-            // You could trigger a small "Copied!" toast here
         }
     }
 
@@ -235,13 +234,23 @@ export default function ScoreCard({ data, onClose }: ScoreCardProps) {
                         <div className='grid grid-cols-3 border border-white/10 rounded-xl bg-white/[0.02]'>
                             <div className='p-4 text-center border-r border-white/10'>
                                 <div className='text-2xl font-bold text-white font-mono'>
-                                    {showDCFast 
-                                        ? Math.round((data.chargers.total > 0 ? (data.chargers.dcfast_count / data.chargers.total) : 0) * data.chargers.within_1_mile) 
+                                    {showDCFast
+                                        ? Math.round(
+                                              (data.chargers.total > 0
+                                                  ? data.chargers.dcfast_count /
+                                                    data.chargers.total
+                                                  : 0) *
+                                                  data.chargers.within_1_mile
+                                          )
                                         : data.chargers.within_1_mile}
                                 </div>
-                                <div className={`text-[8px] uppercase font-mono mt-0.5 ${
-                                    showDCFast ? 'text-[var(--neon-high)]' : 'text-white/30'
-                                }`}>
+                                <div
+                                    className={`text-[8px] uppercase font-mono mt-0.5 ${
+                                        showDCFast
+                                            ? 'text-[var(--neon-high)]'
+                                            : 'text-white/30'
+                                    }`}
+                                >
                                     {showDCFast ? 'DC Fast' : 'Stations'}
                                 </div>
                                 <div className='text-[9px] text-white/40 uppercase mt-1 font-mono'>
@@ -250,13 +259,23 @@ export default function ScoreCard({ data, onClose }: ScoreCardProps) {
                             </div>
                             <div className='p-4 text-center border-r border-white/10'>
                                 <div className='text-2xl font-bold text-white font-mono'>
-                                    {showDCFast 
-                                        ? Math.round((data.chargers.total > 0 ? (data.chargers.dcfast_count / data.chargers.total) : 0) * data.chargers.within_5_miles) 
+                                    {showDCFast
+                                        ? Math.round(
+                                              (data.chargers.total > 0
+                                                  ? data.chargers.dcfast_count /
+                                                    data.chargers.total
+                                                  : 0) *
+                                                  data.chargers.within_5_miles
+                                          )
                                         : data.chargers.within_5_miles}
                                 </div>
-                                <div className={`text-[8px] uppercase font-mono mt-0.5 ${
-                                    showDCFast ? 'text-[var(--neon-high)]' : 'text-white/30'
-                                }`}>
+                                <div
+                                    className={`text-[8px] uppercase font-mono mt-0.5 ${
+                                        showDCFast
+                                            ? 'text-[var(--neon-high)]'
+                                            : 'text-white/30'
+                                    }`}
+                                >
                                     {showDCFast ? 'DC Fast' : 'Stations'}
                                 </div>
                                 <div className='text-[9px] text-white/40 uppercase mt-1 font-mono'>
@@ -265,13 +284,23 @@ export default function ScoreCard({ data, onClose }: ScoreCardProps) {
                             </div>
                             <div className='p-4 text-center'>
                                 <div className='text-2xl font-bold text-white font-mono'>
-                                    {showDCFast 
-                                        ? Math.round((data.chargers.total > 0 ? (data.chargers.dcfast_count / data.chargers.total) : 0) * data.chargers.within_10_miles) 
+                                    {showDCFast
+                                        ? Math.round(
+                                              (data.chargers.total > 0
+                                                  ? data.chargers.dcfast_count /
+                                                    data.chargers.total
+                                                  : 0) *
+                                                  data.chargers.within_10_miles
+                                          )
                                         : data.chargers.within_10_miles}
                                 </div>
-                                <div className={`text-[8px] uppercase font-mono mt-0.5 ${
-                                    showDCFast ? 'text-[var(--neon-high)]' : 'text-white/30'
-                                }`}>
+                                <div
+                                    className={`text-[8px] uppercase font-mono mt-0.5 ${
+                                        showDCFast
+                                            ? 'text-[var(--neon-high)]'
+                                            : 'text-white/30'
+                                    }`}
+                                >
                                     {showDCFast ? 'DC Fast' : 'Stations'}
                                 </div>
                                 <div className='text-[9px] text-white/40 uppercase mt-1 font-mono'>
@@ -308,8 +337,6 @@ export default function ScoreCard({ data, onClose }: ScoreCardProps) {
                             </div>
                         </div>
                     )}
-
-                    {/* Updated "Cyberpunk" Button */}
                     <button
                         onClick={onClose}
                         className='w-full py-4 rounded-xl font-bold tracking-widest text-sm uppercase transition-all
