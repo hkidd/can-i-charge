@@ -11,6 +11,13 @@ export interface AggregationResult {
     zips_processed: number
     duration_seconds: number
     changes_detected: RegionChanges
+    zip_completion: {
+        total_affected: number
+        completed: number
+        remaining: number
+        percentage: number
+        is_complete: boolean
+    }
     error?: string
 }
 
@@ -38,6 +45,13 @@ export class SmartAggregator {
                 counties: new Set(),
                 zips: new Set(),
                 total_changes: 0
+            },
+            zip_completion: {
+                total_affected: 0,
+                completed: 0,
+                remaining: 0,
+                percentage: 0,
+                is_complete: true
             }
         }
         
@@ -70,6 +84,17 @@ export class SmartAggregator {
             if (levels.includes('zips') && changes.zips.size > 0) {
                 console.log(`📮 Processing ${changes.zips.size} changed zip codes...`)
                 result.zips_processed = await this.processChangedZips(changes.zips, useStaging)
+                
+                // Calculate completion status
+                const completion = await this.calculateZipCompletion(changes.zips, useStaging)
+                result.zip_completion = completion
+                
+                console.log(`📊 ZIP Completion Status: ${completion.completed}/${completion.total_affected} (${completion.percentage}%)`)
+                if (completion.is_complete) {
+                    console.log(`✅ All ZIP codes processed successfully!`)
+                } else {
+                    console.log(`⏳ ${completion.remaining} ZIP codes remaining to process`)
+                }
             }
             
             // Step 3: Save change log for audit
@@ -328,6 +353,67 @@ export class SmartAggregator {
         // Return a reasonable estimate for ZIP code population
         return Math.floor(Math.random() * 15000) + 5000 // 5k-20k range
     }
+
+    /**
+     * Calculate ZIP code processing completion status
+     */
+    private static async calculateZipCompletion(originalAffectedZips: Set<string>, useStaging: boolean): Promise<{
+        total_affected: number
+        completed: number  
+        remaining: number
+        percentage: number
+        is_complete: boolean
+    }> {
+        try {
+            const totalAffected = originalAffectedZips.size
+            const stagingTable = 'zip_level_data_staging'
+            
+            // Count how many affected ZIP codes are already in staging
+            const affectedZipsArray = Array.from(originalAffectedZips)
+            const chunkSize = 1000
+            let completedCount = 0
+            
+            // Process in chunks to avoid query limits
+            for (let i = 0; i < affectedZipsArray.length; i += chunkSize) {
+                const chunk = affectedZipsArray.slice(i, i + chunkSize)
+                
+                try {
+                    const { data, error } = await supabaseAdmin
+                        .from(stagingTable)
+                        .select('zip_code', { count: 'exact' })
+                        .in('zip_code', chunk)
+                    
+                    if (!error && data) {
+                        completedCount += data.length
+                    }
+                } catch (chunkError) {
+                    console.warn(`Error checking completion for chunk ${i}:`, chunkError)
+                }
+            }
+            
+            const remaining = totalAffected - completedCount
+            const percentage = Math.round((completedCount / totalAffected) * 100)
+            const isComplete = remaining === 0
+            
+            return {
+                total_affected: totalAffected,
+                completed: completedCount,
+                remaining: remaining, 
+                percentage: percentage,
+                is_complete: isComplete
+            }
+            
+        } catch (error) {
+            console.error('Error calculating ZIP completion:', error)
+            return {
+                total_affected: originalAffectedZips.size,
+                completed: 0,
+                remaining: originalAffectedZips.size,
+                percentage: 0,
+                is_complete: false
+            }
+        }
+    }
     
     /**
      * Full regeneration (fallback for when incremental updates fail)
@@ -355,6 +441,13 @@ export class SmartAggregator {
                     counties: new Set(['*']),
                     zips: new Set(['*']),
                     total_changes: -1 // Indicates full regeneration
+                },
+                zip_completion: {
+                    total_affected: zipsCount,
+                    completed: zipsCount,
+                    remaining: 0,
+                    percentage: 100,
+                    is_complete: true
                 }
             }
         } catch (error) {
@@ -369,6 +462,13 @@ export class SmartAggregator {
                     counties: new Set(),
                     zips: new Set(),
                     total_changes: 0
+                },
+                zip_completion: {
+                    total_affected: 0,
+                    completed: 0,
+                    remaining: 0,
+                    percentage: 0,
+                    is_complete: false
                 },
                 error: error instanceof Error ? error.message : 'Unknown error'
             }

@@ -74,14 +74,14 @@ export async function POST(request: NextRequest) {
 
         logs.push(`✓ Processed ${processedStations.length} valid stations`)
 
-        // STEP 3: Clear staging tables
+        // STEP 3: Clear staging tables (preserving ZIP progress for incremental updates)
         logs.push('Clearing staging tables...')
         await clearTable('charging_stations_staging')
         await clearTable('state_level_data_staging')
         await clearTable('county_level_data_staging')
-        await clearTable('zip_level_data_staging')
+        // NOTE: zip_level_data_staging preserved for incremental processing
         await clearTable('neighborhood_level_data_staging')
-        logs.push('✓ Staging tables cleared')
+        logs.push('✓ Staging tables cleared (ZIP staging preserved for incremental updates)')
 
         // STEP 4: Insert into staging tables
         logs.push('Inserting stations into STAGING...')

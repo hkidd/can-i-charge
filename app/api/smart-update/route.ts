@@ -48,9 +48,21 @@ export async function POST(request: NextRequest) {
             }, { status: 500 })
         }
         
-        // If using staging and we processed changes, perform atomic swap
+        // If using staging and we processed changes, check if ZIP processing is complete before swapping
         if (useStaging && result.changes_detected.total_changes > 0) {
-            console.log('🔄 Performing atomic swap: staging → production...')
+            if (!result.zip_completion.is_complete) {
+                console.log(`⏳ ZIP processing incomplete (${result.zip_completion.percentage}%) - skipping swap until all ZIPs are processed`)
+                console.log(`📊 Progress: ${result.zip_completion.completed}/${result.zip_completion.total_affected} ZIP codes completed`)
+                
+                return NextResponse.json({
+                    ...result,
+                    success: true,
+                    message: `Smart update in progress - ${result.zip_completion.remaining} ZIP codes remaining`,
+                    swap_performed: false
+                })
+            }
+            
+            console.log('🔄 All ZIP processing complete! Performing atomic swap: staging → production...')
             const swapSuccess = await swapStagingToProduction()
             
             if (!swapSuccess) {
@@ -69,7 +81,8 @@ export async function POST(request: NextRequest) {
             success: true,
             message: result.changes_detected.total_changes === 0 
                 ? 'No changes detected - aggregation skipped' 
-                : 'Smart incremental update completed successfully'
+                : 'Smart incremental update completed successfully',
+            swap_performed: useStaging && result.changes_detected.total_changes > 0 && result.zip_completion.is_complete
         })
 
     } catch (error) {
