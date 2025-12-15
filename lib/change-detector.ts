@@ -133,6 +133,16 @@ export class ChangeDetector {
         console.log(`   • ${affectedRegions.states.size} states affected`)
         console.log(`   • ${affectedRegions.zips.size} zip codes affected`)
         
+        // Filter out ZIP codes that are already processed in staging
+        if (useStaging && affectedRegions.zips.size > 0) {
+            const filteredZips = await this.filterAlreadyProcessedZips(affectedRegions.zips, useStaging)
+            if (filteredZips.size !== affectedRegions.zips.size) {
+                console.log(`   • ${affectedRegions.zips.size - filteredZips.size} zip codes already processed, skipping`)
+                console.log(`   • ${filteredZips.size} zip codes remaining to process`)
+                affectedRegions.zips = filteredZips
+            }
+        }
+        
         return affectedRegions
     }
     
@@ -173,6 +183,43 @@ export class ChangeDetector {
         }
         
         return counties
+    }
+    
+    /**
+     * Filter out ZIP codes that are already processed in staging tables
+     */
+    private static async filterAlreadyProcessedZips(affectedZips: Set<string>, useStaging: boolean): Promise<Set<string>> {
+        if (!useStaging || affectedZips.size === 0) return affectedZips
+        
+        try {
+            const stagingTable = 'zip_level_data_staging'
+            const zipArray = Array.from(affectedZips)
+            
+            // Get ZIP codes that already exist in staging
+            const { data: existingZips, error } = await supabaseAdmin
+                .from(stagingTable)
+                .select('zip_code')
+                .in('zip_code', zipArray)
+            
+            if (error) {
+                console.warn('Failed to check existing ZIP codes in staging, processing all:', error)
+                return affectedZips
+            }
+            
+            const processedZipSet = new Set(existingZips?.map(z => z.zip_code) || [])
+            const remainingZips = new Set<string>()
+            
+            for (const zip of affectedZips) {
+                if (!processedZipSet.has(zip)) {
+                    remainingZips.add(zip)
+                }
+            }
+            
+            return remainingZips
+        } catch (error) {
+            console.warn('Error filtering processed ZIP codes, processing all:', error)
+            return affectedZips
+        }
     }
     
     /**

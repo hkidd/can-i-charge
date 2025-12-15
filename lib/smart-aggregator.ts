@@ -123,7 +123,7 @@ export class SmartAggregator {
         if (changedZips.size === 0) return 0
         
         const zipArray = Array.from(changedZips)
-        const maxBatchSize = 250 // Reduced for 5-minute Hobby plan limit
+        const maxBatchSize = 100 // Reduced for 5-minute Hobby plan limit
         let totalProcessed = 0
         
         console.log(`📮 Processing ${zipArray.length} changed zip codes in batches of ${maxBatchSize}`)
