@@ -203,62 +203,175 @@ export class ChangeDetector {
     }
     
     /**
-     * Filter out ZIP codes that are already processed in staging tables
+     * Filter out ZIP codes that are already up-to-date in production
      */
     private static async filterAlreadyProcessedZips(affectedZips: Set<string>, useStaging: boolean): Promise<Set<string>> {
         if (!useStaging || affectedZips.size === 0) return affectedZips
         
         try {
+            // First check if ZIPs are already in staging (previous behavior)
             const stagingTable = 'zip_level_data_staging'
             const zipArray = Array.from(affectedZips)
-            
-            // Process in chunks to avoid query limits
-            const chunkSize = 1000
+            const chunkSize = 500
             const processedZipSet = new Set<string>()
             
+            // Check staging table first
             for (let i = 0; i < zipArray.length; i += chunkSize) {
                 const chunk = zipArray.slice(i, i + chunkSize)
                 
                 try {
-                    // Get ZIP codes that already exist in staging for this chunk
                     const { data: existingZips, error } = await supabaseAdmin
                         .from(stagingTable)
                         .select('zip_code')
                         .in('zip_code', chunk)
                     
-                    if (error) {
-                        console.warn(`Failed to check staging ZIP chunk ${i}-${i+chunk.length}:`, error.message || error)
-                        // Continue with other chunks instead of failing completely
-                        continue
+                    if (!error && existingZips) {
+                        existingZips.forEach(z => processedZipSet.add(z.zip_code))
                     }
-                    
-                    // Add found ZIP codes to processed set
-                    existingZips?.forEach(z => processedZipSet.add(z.zip_code))
-                    
                 } catch (chunkError) {
-                    console.warn(`Error processing ZIP chunk ${i}-${i+chunk.length}:`, chunkError)
-                    // Continue with other chunks
-                }
-            }
-            
-            // Filter out processed ZIPs
-            const remainingZips = new Set<string>()
-            for (const zip of affectedZips) {
-                if (!processedZipSet.has(zip)) {
-                    remainingZips.add(zip)
+                    console.warn(`Error checking staging for chunk ${i}:`, chunkError)
                 }
             }
             
             if (processedZipSet.size > 0) {
-                console.log(`📋 Found ${processedZipSet.size} already-processed ZIP codes in staging`)
+                console.log(`📋 Found ${processedZipSet.size} ZIP codes already in staging`)
             }
             
-            return remainingZips
+            // For remaining ZIPs, check if production data is current
+            const remainingAfterStaging = new Set<string>()
+            for (const zip of affectedZips) {
+                if (!processedZipSet.has(zip)) {
+                    remainingAfterStaging.add(zip)
+                }
+            }
+            
+            if (remainingAfterStaging.size === 0) {
+                return remainingAfterStaging
+            }
+            
+            console.log(`🔍 Checking if ${remainingAfterStaging.size} ZIP codes need updates based on current station data...`)
+            
+            // Check if ZIP codes in production match current station data
+            const outdatedZips = await this.findOutdatedZipsInProduction(remainingAfterStaging)
+            
+            console.log(`📊 Production analysis: ${outdatedZips.size} ZIP codes need updates, ${remainingAfterStaging.size - outdatedZips.size} are current`)
+            
+            return outdatedZips
             
         } catch (error) {
-            console.warn('Error filtering processed ZIP codes, processing all:', error instanceof Error ? error.message : error)
+            console.warn('Error filtering ZIP codes, processing all:', error instanceof Error ? error.message : error)
             return affectedZips
         }
+    }
+    
+    /**
+     * Check which ZIP codes in production have outdated data compared to current stations
+     */
+    private static async findOutdatedZipsInProduction(zipCodes: Set<string>): Promise<Set<string>> {
+        if (zipCodes.size === 0) return new Set()
+        
+        const outdatedZips = new Set<string>()
+        const zipArray = Array.from(zipCodes)
+        const chunkSize = 100 // Smaller chunks for this complex operation
+        
+        for (let i = 0; i < zipArray.length; i += chunkSize) {
+            const chunk = zipArray.slice(i, i + chunkSize)
+            
+            try {
+                // Get current station counts for these ZIP codes
+                const { data: currentStations, error: stationsError } = await supabaseAdmin
+                    .from('charging_stations')
+                    .select('zip, state, charger_type_detailed')
+                    .in('zip', chunk.concat(chunk.map(z => z + '-0000'))) // Include extended ZIP codes
+                    .not('zip', 'is', null)
+                
+                if (stationsError) {
+                    console.warn(`Error fetching current stations for ZIP chunk:`, stationsError)
+                    // Add all to outdated to be safe
+                    chunk.forEach(zip => outdatedZips.add(zip))
+                    continue
+                }
+                
+                // Get production ZIP data for comparison
+                const { data: productionZips, error: zipError } = await supabaseAdmin
+                    .from('zip_level_data')
+                    .select('zip_code, state, charger_count, dcfast_count, level2_count, level1_count')
+                    .in('zip_code', chunk)
+                
+                if (zipError) {
+                    console.warn(`Error fetching production ZIP data:`, zipError)
+                    // Add all to outdated to be safe
+                    chunk.forEach(zip => outdatedZips.add(zip))
+                    continue
+                }
+                
+                // Calculate current station counts per ZIP
+                const currentCounts = new Map<string, {charger_count: number, dcfast: number, level2: number, level1: number}>()
+                
+                if (currentStations) {
+                    for (const station of currentStations) {
+                        const cleanZip = this.cleanZipCode(station.zip)
+                        if (!cleanZip) continue
+                        
+                        const key = `${cleanZip}-${station.state}`
+                        const existing = currentCounts.get(key) || {charger_count: 0, dcfast: 0, level2: 0, level1: 0}
+                        
+                        existing.charger_count++
+                        if (station.charger_type_detailed === 'dcfast') existing.dcfast++
+                        else if (station.charger_type_detailed === 'level2') existing.level2++
+                        else if (station.charger_type_detailed === 'level1') existing.level1++
+                        
+                        currentCounts.set(key, existing)
+                    }
+                }
+                
+                // Compare with production data
+                if (productionZips) {
+                    for (const prodZip of productionZips) {
+                        const key = `${prodZip.zip_code}-${prodZip.state}`
+                        const currentData = currentCounts.get(key)
+                        
+                        // If no current stations but production has data, it's outdated
+                        if (!currentData && prodZip.charger_count > 0) {
+                            outdatedZips.add(prodZip.zip_code)
+                            continue
+                        }
+                        
+                        // If current stations but no production data, it needs update  
+                        if (currentData && !prodZip) {
+                            outdatedZips.add(key.split('-')[0])
+                            continue
+                        }
+                        
+                        // Compare counts if both exist
+                        if (currentData && prodZip) {
+                            if (currentData.charger_count !== prodZip.charger_count ||
+                                currentData.dcfast !== prodZip.dcfast_count ||
+                                currentData.level2 !== prodZip.level2_count ||
+                                currentData.level1 !== prodZip.level1_count) {
+                                outdatedZips.add(prodZip.zip_code)
+                            }
+                        }
+                    }
+                }
+                
+                // Check for ZIP codes that have current stations but no production record
+                for (const [key] of currentCounts) {
+                    const zipCode = key.split('-')[0]
+                    const hasProductionRecord = productionZips?.some(p => p.zip_code === zipCode)
+                    if (!hasProductionRecord) {
+                        outdatedZips.add(zipCode)
+                    }
+                }
+                
+            } catch (chunkError) {
+                console.warn(`Error processing ZIP comparison chunk ${i}:`, chunkError)
+                // Add chunk to outdated to be safe
+                chunk.forEach(zip => outdatedZips.add(zip))
+            }
+        }
+        
+        return outdatedZips
     }
     
     /**
