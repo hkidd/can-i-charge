@@ -26,9 +26,26 @@ export async function GET(request: NextRequest) {
     }
     
     // 1. Call the main refresh-data endpoint to update charging stations
-    results.push(await refreshChargingStations())
-    
-    // 2. Perform smart incremental aggregation updates
+    const stationsResult = await refreshChargingStations()
+    results.push(stationsResult)
+
+    // CRITICAL: Abort if charging stations refresh failed - don't aggregate with bad/empty data
+    if (!stationsResult.success) {
+      logError(new Error('Aborting cron - charging stations refresh failed'), 'cron.daily-refresh', {
+        reason: 'Cannot proceed with aggregation when station data is invalid',
+        stationsResult
+      })
+
+      return NextResponse.json({
+        success: false,
+        message: 'Daily refresh aborted - charging stations refresh failed. Production data preserved.',
+        totalDuration: Math.round((Date.now() - startTime) / 1000),
+        results,
+        timestamp: new Date().toISOString()
+      }, { status: 500 })
+    }
+
+    // 2. Perform smart incremental aggregation updates (only if stations refresh succeeded)
     results.push(await performSmartAggregation())
     
     // 5. Clean up old data (optional)
