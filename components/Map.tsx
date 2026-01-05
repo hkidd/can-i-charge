@@ -200,9 +200,18 @@ export default function Map() {
     }
 
     const getScoreColor = (score: number) => {
-        if (score >= 80) return 'var(--neon-high)' // Green/Emerald
-        if (score >= 50) return 'var(--neon-mid)' // Cyan
-        return 'var(--neon-low)' // Indigo/Purple
+        if (chargerFilters.opportunityMode) {
+            // Opportunity mode colors (matching map palette)
+            if (score >= 75) return '#facc15' // Gold
+            if (score >= 50) return '#f59e0b' // Amber
+            if (score >= 35) return '#ea580c' // Orange
+            return '#dc2626' // Red
+        } else {
+            // Normal mode colors (cooler palette)
+            if (score >= 80) return 'var(--neon-high)' // Green/Emerald
+            if (score >= 50) return 'var(--neon-mid)' // Cyan
+            return 'var(--neon-low)' // Indigo/Purple
+        }
     }
 
     return (
@@ -309,7 +318,7 @@ export default function Map() {
                                         )
                                     }}
                                 >
-                                    {hoveredState.score}
+                                    {Math.round(hoveredState.score || 0)}
                                 </span>
                             </div>
                             {/* Visual Progress Bar */}
@@ -343,33 +352,38 @@ export default function Map() {
 
                             <div>
                                 <span className='text-[10px] font-mono text-foreground/50 uppercase block mb-1'>
-                                    Service Level
+                                    {chargerFilters.opportunityMode ? 'Opportunity Level' : 'Service Level'}
                                 </span>
                                 <span
                                     className='text-xl font-semibold'
                                     style={{
-                                        color:
-                                            (hoveredState.score || 0) >= 80
-                                                ? '#10b981' // Neon Emerald
-                                                : (hoveredState.score || 0) >=
-                                                  60
-                                                ? '#06b6d4' // Cyan
-                                                : (hoveredState.score || 0) >=
-                                                  40
-                                                ? '#2563eb' // Royal Blue
-                                                : '#4c1d95' // Lighter Violet
+                                        color: getScoreColor(hoveredState.score || 0)
                                     }}
                                 >
-                                    {(hoveredState.score || 0) >= 80
-                                        ? 'Excellent'
-                                        : (hoveredState.score || 0) >= 60
-                                        ? 'Good'
-                                        : (hoveredState.score || 0) >= 40
-                                        ? 'Fair'
-                                        : hoveredState.population &&
-                                          hoveredState.population < 10000
-                                        ? 'Rural'
-                                        : 'Poor'}
+                                    {chargerFilters.opportunityMode
+                                        ? (hoveredState.score || 0) >= 90
+                                            ? 'Critical'     // 90-100: Critical opportunity
+                                            : (hoveredState.score || 0) >= 75
+                                            ? 'Very High'    // 75-89: Very high opportunity
+                                            : (hoveredState.score || 0) >= 60
+                                            ? 'High'         // 60-74: High opportunity
+                                            : (hoveredState.score || 0) >= 45
+                                            ? 'Moderate'     // 45-59: Moderate opportunity
+                                            : (hoveredState.score || 0) >= 30
+                                            ? 'Low'          // 30-44: Low opportunity
+                                            : (hoveredState.score || 0) >= 15
+                                            ? 'Very Low'     // 15-29: Very low opportunity
+                                            : 'Minimal'      // 0-14: Minimal opportunity
+                                        : (hoveredState.score || 0) >= 80
+                                            ? 'Excellent'
+                                            : (hoveredState.score || 0) >= 60
+                                            ? 'Good'
+                                            : (hoveredState.score || 0) >= 40
+                                            ? 'Fair'
+                                            : hoveredState.population &&
+                                              hoveredState.population < 10000
+                                            ? 'Rural'
+                                            : 'Poor'}
                                 </span>
                             </div>
                         </div>

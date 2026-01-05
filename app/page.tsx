@@ -10,12 +10,14 @@ export default function HomePage() {
                 body > nav {
                     display: none;
                 }
-                body {
-                    padding-top: 0 !important;
-                }
             `}</style>
 
-            <div className='w-screen h-screen fixed top-0 left-0 bg-background'>
+            <div className='w-screen fixed inset-0 bg-background' style={{
+                paddingTop: 'env(safe-area-inset-top)',
+                paddingBottom: 'env(safe-area-inset-bottom)',
+                paddingLeft: 'env(safe-area-inset-left)',
+                paddingRight: 'env(safe-area-inset-right)'
+            }}>
                 <Map />
                 <RivianBadge />
             </div>

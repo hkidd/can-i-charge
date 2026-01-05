@@ -17,6 +17,13 @@ export const metadata: Metadata = {
         'Level 2 charging'
     ],
     metadataBase: new URL(process.env.NEXT_PUBLIC_URL || 'https://can-i-charge.vercel.app'),
+    viewport: {
+        width: 'device-width',
+        initialScale: 1,
+        maximumScale: 1,
+        userScalable: false,
+        viewportFit: 'cover'
+    },
     openGraph: {
         title: 'Can I Charge? - EV Charging Infrastructure Scores',
         description: 'Discover EV charging infrastructure availability for any US address. Get instant scores and insights.',
