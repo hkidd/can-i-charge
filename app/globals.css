@@ -34,11 +34,14 @@
     --color-neon-orange: var(--neon-orange);
 }
 
+/* iOS 26 Safari viewport fix */
 html {
-    height: 100%;
-    height: -webkit-fill-available;
+    height: 100vh;
     height: 100dvh;
+    height: -webkit-fill-available;
     overflow: hidden;
+    /* Force reflow on iOS */
+    -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -47,35 +50,35 @@ body {
     /* Use a tech-oriented font stack if available, otherwise system */
     font-family: 'Inter', 'Roboto', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
-    height: 100%;
+    height: 100vh;
+    height: 100dvh; 
     height: -webkit-fill-available;
-    height: 100dvh;
     margin: 0;
     padding: 0;
     overflow: hidden;
-    position: fixed;
+    /* iOS 26 fix: Use absolute instead of fixed */
+    position: absolute;
     width: 100%;
     top: 0;
     left: 0;
 }
 
-/* Mobile safe area handling for browsers that support viewport-fit=cover */
+/* iOS 26 compatible safe area container */
 .mobile-safe-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100vw;
+    /* Use absolute positioning for iOS 26 compatibility */
+    position: absolute;
+    inset: 0;
+    width: 100%;
     height: 100vh;
-    height: -webkit-fill-available;
     height: 100dvh;
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+    height: -webkit-fill-available;
     background: var(--background);
     overflow: hidden;
+    /* Apply safe area insets with fallback */
+    padding-top: env(safe-area-inset-top, 0);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
 }
 
 /* --- FUTURISTIC UI COMPONENTS --- */
