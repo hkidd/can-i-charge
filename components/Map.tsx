@@ -221,7 +221,7 @@ export default function Map() {
             {/* Top Controls */}
             <div className='absolute top-4 left-4 right-4 z-10 flex flex-col gap-3'>
                 {/* Centered search with side buttons */}
-                <div className='relative flex items-center'>
+                <div className='relative flex items-center min-h-[48px]'>
                     {/* Mobile Filter Button - Left Side */}
                     <button
                         onClick={() => setShowMobileFilters(true)}
@@ -244,7 +244,7 @@ export default function Map() {
 
                     {/* Centered Search Bar */}
                     <div className='flex-1 max-w-md mx-auto'>
-                        <div className='pl-14 pr-16 md:px-0'>
+                        <div className='px-14 md:px-0'>
                             <AddressSearch
                                 onLocationSelect={handleLocationSelect}
                             />
