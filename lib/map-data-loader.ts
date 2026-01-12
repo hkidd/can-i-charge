@@ -29,21 +29,21 @@ const applyThemeColors = (map: mapboxgl.Map, opportunityMode: boolean = false) =
                 '#facc15' // Gold
             ])
         } else {
-            // Normal mode: Purple to Green spectrum
+            // Normal mode: Purple to Emerald (high contrast)
             map.setPaintProperty('region-fills', 'fill-color', [
                 'interpolate',
                 ['linear'],
                 ['get', 'score'],
                 0,
-                '#2e1065', // Deep Violet
+                '#581c87', // Purple-800
                 35,
-                '#4c1d95', // Violet
+                '#6d28d9', // Violet-700
                 50,
-                '#2563eb', // Blue
+                '#2563eb', // Blue-600
                 75,
-                '#06b6d4', // Cyan
+                '#0891b2', // Cyan-600
                 100,
-                '#10b981' // Green
+                '#059669' // Emerald-600
             ])
         }
 
@@ -80,11 +80,11 @@ const applyThemeColors = (map: mapboxgl.Map, opportunityMode: boolean = false) =
                 ['linear'],
                 ['get', 'score'],
                 0,
-                '#7c3aed', // Purple edge
+                '#a855f7', // Purple-500
                 50,
-                '#38bdf8', // Blue edge
+                '#22d3ee', // Cyan-400
                 100,
-                '#34d399' // Green edge
+                '#34d399' // Emerald-400
             ])
         }
         map.setPaintProperty('region-borders', 'line-opacity', 0.5)

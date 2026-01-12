@@ -2,7 +2,7 @@ import { supabaseAdmin } from './supabase'
 import * as topojson from 'topojson-client'
 import { fetchCountyPopulation } from './census-api'
 import { calculateNeedScore } from './scoring'
-import { calculateWeightedEVScore } from './aggregation-optimized'
+import { calculateEnhancedEVScore } from './aggregation-optimized'
 
 // Utility function to get state code from FIPS
 function getStateCodeFromFIPS(fips: string): string | null {
@@ -120,7 +120,9 @@ export async function generateCountyDataOptimized(
     const tableName = useStaging
         ? 'county_level_data_staging'
         : 'county_level_data'
-    const stationsTable = 'charging_stations' // Always use production charging_stations table
+    const stationsTable = useStaging
+        ? 'charging_stations_staging'
+        : 'charging_stations'
 
     try {
         // Clear existing data
@@ -252,12 +254,15 @@ export async function generateCountyDataOptimized(
             )
 
             const needScore = calculateNeedScore(population, totalChargers)
-            const weightedChargerCount =
-                dcfastCount * 1.0 + level2Count * 0.7 + level1Count * 0.3
-            const score = calculateWeightedEVScore(
-                weightedChargerCount,
-                population
-            )
+            const score = calculateEnhancedEVScore(population, {
+                dcfast: dcfastCount,
+                level2: level2Count,
+                level1: level1Count,
+                tesla: teslaCount,
+                nonTesla: ccsCount + j1772Count + chademoCount,
+                totalPorts: totalPorts,
+                totalChargers
+            })
 
             countyData.push({
                 county_name: countyName,

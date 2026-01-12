@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SmartAggregator } from '@/lib/smart-aggregator'
-import { swapStagingToProduction } from '@/lib/data-processor'
+import { swapStagingToProduction, getStagingStationCount } from '@/lib/data-processor'
+
+const MINIMUM_STAGING_STATIONS = 40000
 
 function isAuthorized(request: NextRequest): boolean {
     const cronSecret = process.env.CRON_SECRET
@@ -48,41 +50,49 @@ export async function POST(request: NextRequest) {
             }, { status: 500 })
         }
         
-        // If using staging and we processed changes, check if ZIP processing is complete before swapping
-        if (useStaging && result.changes_detected.total_changes > 0) {
+        // Check if we should swap staging to production
+        if (useStaging) {
+            // Verify staging has data before swapping
+            const stagingCount = await getStagingStationCount()
+            console.log(`📊 Staging station count: ${stagingCount}`)
+
+            if (stagingCount < MINIMUM_STAGING_STATIONS) {
+                return NextResponse.json({
+                    ...result,
+                    success: false,
+                    error: `Staging has only ${stagingCount} stations (min: ${MINIMUM_STAGING_STATIONS}). Swap aborted.`
+                }, { status: 500 })
+            }
+
             if (!result.zip_completion.is_complete) {
-                console.log(`⏳ ZIP processing incomplete (${result.zip_completion.percentage}%) - skipping swap until all ZIPs are processed`)
-                console.log(`📊 Progress: ${result.zip_completion.completed}/${result.zip_completion.total_affected} ZIP codes completed`)
-                
+                console.log(`⏳ ZIP processing incomplete (${result.zip_completion.percentage}%)`)
                 return NextResponse.json({
                     ...result,
                     success: true,
-                    message: `Smart update in progress - ${result.zip_completion.remaining} ZIP codes remaining`,
+                    message: `In progress - ${result.zip_completion.remaining} ZIP codes remaining`,
                     swap_performed: false
                 })
             }
-            
-            console.log('🔄 All ZIP processing complete! Performing atomic swap: staging → production...')
+
+            console.log('🔄 Performing atomic swap: staging → production...')
             const swapSuccess = await swapStagingToProduction()
-            
+
             if (!swapSuccess) {
                 return NextResponse.json({
                     ...result,
                     success: false,
-                    error: 'Smart update completed but failed to swap to production'
+                    error: 'Swap to production failed'
                 }, { status: 500 })
             }
-            
-            console.log('✅ Smart update completed with zero downtime!')
+
+            console.log('✅ Swap complete')
         }
 
         return NextResponse.json({
             ...result,
             success: true,
-            message: result.changes_detected.total_changes === 0 
-                ? 'No changes detected - aggregation skipped' 
-                : 'Smart incremental update completed successfully',
-            swap_performed: useStaging && result.changes_detected.total_changes > 0 && result.zip_completion.is_complete
+            message: 'Smart update completed',
+            swap_performed: useStaging && result.zip_completion.is_complete
         })
 
     } catch (error) {
@@ -101,11 +111,11 @@ export async function POST(request: NextRequest) {
 
 // GET endpoint for cron jobs
 export async function GET(request: NextRequest) {
+    const authHeader = request.headers.get('authorization')
     const searchParams = request.nextUrl.searchParams
-    const secret = searchParams.get('secret')
     const level = searchParams.get('level') || 'states'
 
-    if (secret !== process.env.CRON_SECRET) {
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -113,7 +123,7 @@ export async function GET(request: NextRequest) {
     const mockRequest = new Request(request.url, {
         method: 'POST',
         headers: {
-            'authorization': `Bearer ${secret}`,
+            'authorization': authHeader,
             'content-type': 'application/json'
         },
         body: JSON.stringify({

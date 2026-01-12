@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
     processNRELStation,
     batchInsertStations,
-    clearTable,
-    swapStagingToProduction
+    clearTable
 } from '@/lib/data-processor'
 import { generateStateData } from '@/lib/aggregation'
 import { generateStateDataOptimized } from '@/lib/aggregation-optimized'
 
 // Feature flag to easily switch between implementations
 const USE_OPTIMIZED = true
+
+const MINIMUM_EXPECTED_STATIONS = 40000
 
 export const maxDuration = 300
 
@@ -40,9 +41,7 @@ export async function POST(request: NextRequest) {
     const logs: string[] = []
 
     try {
-        logs.push('Starting full data refresh with staging tables...')
-
-        // STEP 1: Fetch from NREL (no database changes yet)
+        logs.push('Starting data refresh...')
         logs.push('Fetching charging stations from NREL...')
         const apiKey = process.env.NREL_API_KEY
 
@@ -61,7 +60,14 @@ export async function POST(request: NextRequest) {
         const rawStations = data.fuel_stations || []
         logs.push(`✓ Fetched ${rawStations.length} stations from NREL`)
 
-        // STEP 2: Process stations (still no database changes)
+        // Validate before any DB changes
+        if (rawStations.length < MINIMUM_EXPECTED_STATIONS) {
+            throw new Error(
+                `NREL returned ${rawStations.length} stations (min: ${MINIMUM_EXPECTED_STATIONS}). Aborting.`
+            )
+        }
+        logs.push(`✓ Station count validated (${rawStations.length} >= ${MINIMUM_EXPECTED_STATIONS})`)
+
         logs.push('Processing stations...')
         const processedStations = rawStations
             .filter(
@@ -74,48 +80,43 @@ export async function POST(request: NextRequest) {
 
         logs.push(`✓ Processed ${processedStations.length} valid stations`)
 
-        // STEP 3: Clear staging tables (preserving ZIP progress for incremental updates)
+        if (processedStations.length < MINIMUM_EXPECTED_STATIONS * 0.9) {
+            throw new Error(
+                `Too many filtered: ${rawStations.length} → ${processedStations.length}. Aborting.`
+            )
+        }
+
         logs.push('Clearing staging tables...')
         await clearTable('charging_stations_staging')
         await clearTable('state_level_data_staging')
         await clearTable('county_level_data_staging')
-        // NOTE: zip_level_data_staging preserved for incremental processing
         await clearTable('neighborhood_level_data_staging')
-        logs.push('✓ Staging tables cleared (ZIP staging preserved for incremental updates)')
+        logs.push('✓ Staging tables cleared')
 
-        // STEP 4: Insert into staging tables
-        logs.push('Inserting stations into STAGING...')
-        const insertResult = await batchInsertStations(
-            processedStations,
-            1000,
-            true
-        ) // useStaging = true
+        logs.push('Inserting stations into staging...')
+        const insertResult = await batchInsertStations(processedStations, 1000, true)
 
         if (insertResult.errors > 0) {
-            throw new Error(
-                `Failed to insert stations: ${insertResult.errors} errors`
-            )
+            throw new Error(`Insert failed: ${insertResult.errors} errors`)
         }
 
         logs.push(`✓ Inserted ${insertResult.inserted} stations into staging`)
 
-        // STEP 5: Generate aggregations in staging
-        logs.push('Generating state-level aggregations in STAGING...')
+        if (insertResult.inserted < processedStations.length * 0.95) {
+            throw new Error(
+                `Insert mismatch: ${processedStations.length} processed, ${insertResult.inserted} inserted. Aborting.`
+            )
+        }
+
+        // Generate state aggregations (county/zip handled by smart-update)
+        logs.push('Generating state-level aggregations...')
         const stateCount = USE_OPTIMIZED
-            ? await generateStateDataOptimized(true) // useStaging = true
+            ? await generateStateDataOptimized(true)
             : await generateStateData(true)
         logs.push(`✓ Generated ${stateCount} states in staging`)
 
-        // STEP 6: Atomic swap - production stays untouched until here
-        logs.push('Performing atomic swap: staging → production...')
-        const swapSuccess = await swapStagingToProduction()
-
-        if (!swapSuccess) {
-            throw new Error('Failed to swap staging to production')
-        }
-
-        logs.push('✓ Successfully swapped staging to production')
-        logs.push('✓ Production data is now live with zero downtime!')
+        // Swap handled by smart-update after all aggregations complete
+        logs.push('✓ Staging populated - ready for smart-update')
 
         const duration = Math.round((Date.now() - startTime) / 1000)
         logs.push(`Completed in ${duration} seconds`)
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
             stations_fetched: rawStations.length,
             stations_inserted: insertResult.inserted,
             states_generated: stateCount,
+            swap_performed: false, // Swap will be done by smart-update
             logs: logs
         })
     } catch (error) {
@@ -149,10 +151,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-    const searchParams = request.nextUrl.searchParams
-    const secret = searchParams.get('secret')
+    const authHeader = request.headers.get('authorization')
 
-    if (secret !== process.env.CRON_SECRET) {
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

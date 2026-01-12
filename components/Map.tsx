@@ -4,9 +4,6 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import AddressSearch from './AddressSearch'
-import dynamic from 'next/dynamic'
-
-const AboutModal = dynamic(() => import('./AboutModal'), { ssr: false })
 import SupportBanner from './SupportBanner'
 import {
     loadStatePolygons,
@@ -24,7 +21,6 @@ export default function Map() {
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<mapboxgl.Map | null>(null)
     const [loading, setLoading] = useState(true)
-    const [showAbout, setShowAbout] = useState(false)
     const [hoveredState, setHoveredState] = useState<HoveredData | null>(null)
     const [chargerFilters, setChargerFilters] = useState({
         showDCFast: true,
@@ -201,16 +197,14 @@ export default function Map() {
 
     const getScoreColor = (score: number) => {
         if (chargerFilters.opportunityMode) {
-            // Opportunity mode colors (matching map palette)
             if (score >= 75) return '#facc15' // Gold
             if (score >= 50) return '#f59e0b' // Amber
             if (score >= 35) return '#ea580c' // Orange
             return '#dc2626' // Red
         } else {
-            // Normal mode colors (cooler palette)
-            if (score >= 80) return 'var(--neon-high)' // Green/Emerald
-            if (score >= 50) return 'var(--neon-mid)' // Cyan
-            return 'var(--neon-low)' // Indigo/Purple
+            if (score >= 80) return '#059669' // Emerald
+            if (score >= 50) return '#0891b2' // Cyan
+            return '#7c3aed' // Violet
         }
     }
 
@@ -218,8 +212,8 @@ export default function Map() {
         <div className='relative w-full h-screen bg-background overflow-hidden'>
             <div ref={mapContainer} className='w-full h-full' />
 
-            {/* Top Controls */}
-            <div className='absolute top-4 left-4 right-4 z-10 flex flex-col gap-3'>
+            {/* Top Controls - offset for fixed header */}
+            <div className='absolute top-20 left-4 right-4 z-10 flex flex-col gap-3'>
                 {/* Centered search with side buttons */}
                 <div className='relative flex items-center min-h-[48px]'>
                     {/* Mobile Filter Button - Left Side */}
@@ -250,26 +244,6 @@ export default function Map() {
                             />
                         </div>
                     </div>
-
-                    {/* Info Button - Right Side */}
-                    <button
-                        onClick={() => setShowAbout(true)}
-                        className='absolute right-0 w-12 h-12 md:w-14 md:h-14 rounded-full hud-panel flex items-center justify-center text-foreground hover:text-neon-mid transition-colors z-20'
-                    >
-                        <svg
-                            className='w-6 h-6'
-                            fill='none'
-                            stroke='currentColor'
-                            viewBox='0 0 24 24'
-                        >
-                            <path
-                                strokeLinecap='round'
-                                strokeLinejoin='round'
-                                strokeWidth={2}
-                                d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
-                            />
-                        </svg>
-                    </button>
                 </div>
             </div>
 
@@ -283,7 +257,7 @@ export default function Map() {
 
             {/* --- FUTURISTIC HOVER CARD --- */}
             {hoveredState && (
-                <div className='absolute top-24 right-4 md:right-8 pointer-events-none z-20'>
+                <div className='absolute top-36 right-4 md:right-8 pointer-events-none z-20'>
                     <div className='hud-panel rounded-2xl p-5 min-w-[280px] md:min-w-[320px] animate-slide-in backdrop-blur-xl'>
                         {/* Header: Region Name */}
                         <h2 className='text-2xl font-bold text-foreground mb-1 tracking-tight'>
@@ -449,10 +423,6 @@ export default function Map() {
                 </div>
             )}
 
-            <AboutModal
-                isOpen={showAbout}
-                onClose={() => setShowAbout(false)}
-            />
             <ToastContainer messages={messages} onDismiss={dismissToast} />
 
             {/* Mobile Filters Modal */}

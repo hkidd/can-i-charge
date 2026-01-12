@@ -2,20 +2,64 @@ import { supabaseAdmin } from './supabase'
 import { calculateNeedScore } from './scoring'
 import { fetchStatePopulation } from './census-api'
 
-// Calculate weighted EV score
+// Simple weighted score (legacy - used when detailed data not available)
 export function calculateWeightedEVScore(
     weightedChargerCount: number,
     population: number
 ): number {
     if (!population || population === 0) return 0
-    
+
     const chargersPerCapita = weightedChargerCount / population
     const baseScore = Math.min(100, chargersPerCapita * 50000)
-    
-    // Bonus for high charger counts
     const countBonus = Math.min(20, weightedChargerCount / 10)
-    
+
     return Math.round(Math.min(100, baseScore + countBonus))
+}
+
+export interface ChargerBreakdown {
+    dcfast: number
+    level2: number
+    level1: number
+    tesla: number
+    nonTesla: number
+    totalPorts: number
+    totalChargers: number
+}
+
+// Enhanced EV infrastructure score with multiple factors
+export function calculateEnhancedEVScore(
+    population: number,
+    breakdown: ChargerBreakdown
+): number {
+    if (!population || population === 0) return 0
+    if (breakdown.totalChargers === 0) return 0
+
+    // 1. Per capita coverage (max 50 points)
+    const weightedCount = breakdown.dcfast * 1.0 + breakdown.level2 * 0.7 + breakdown.level1 * 0.3
+    const perCapita = weightedCount / population
+    const perCapitaScore = Math.min(50, perCapita * 40000)
+
+    // 2. Charger type diversity (max 15 points)
+    const typeCount = (breakdown.dcfast > 0 ? 1 : 0) +
+                      (breakdown.level2 > 0 ? 1 : 0) +
+                      (breakdown.level1 > 0 ? 1 : 0)
+    const diversityScore = typeCount * 5
+
+    // 3. DC Fast availability bonus (max 15 points)
+    const dcFastRatio = breakdown.dcfast / breakdown.totalChargers
+    const dcFastScore = Math.min(15, dcFastRatio * 30)
+
+    // 4. Network accessibility - both Tesla and non-Tesla available (max 10 points)
+    const hasTesla = breakdown.tesla > 0
+    const hasNonTesla = breakdown.nonTesla > 0
+    const networkScore = (hasTesla && hasNonTesla) ? 10 : (hasTesla || hasNonTesla) ? 5 : 0
+
+    // 5. Infrastructure quality - ports per station (max 10 points)
+    const portsPerStation = breakdown.totalPorts / breakdown.totalChargers
+    const qualityScore = Math.min(10, portsPerStation * 2)
+
+    const totalScore = perCapitaScore + diversityScore + dcFastScore + networkScore + qualityScore
+    return Math.round(Math.min(100, totalScore))
 }
 
 export async function generateStateDataOptimized(
@@ -27,7 +71,9 @@ export async function generateStateDataOptimized(
     const tableName = useStaging
         ? 'state_level_data_staging'
         : 'state_level_data'
-    const stationsTable = 'charging_stations' // Always use production charging_stations table
+    const stationsTable = useStaging
+        ? 'charging_stations_staging'
+        : 'charging_stations'
 
     const states = [
         { code: 'AL', name: 'Alabama', lat: 32.806671, lng: -86.79113 },
@@ -159,7 +205,7 @@ export async function generateStateDataOptimized(
             const chargers = stateChargerMap[state.code] || { dcfast: 0, level2: 0, level1: 0 }
             const connectors = stateConnectorMap[state.code] || { tesla: 0, ccs: 0, j1772: 0, chademo: 0 }
             const ports = statePortMap[state.code] || { tesla: 0, ccs: 0, j1772: 0, chademo: 0, total: 0 }
-            
+
             const dcFast = chargers.dcfast || 0
             const level2 = chargers.level2 || 0
             const level1 = chargers.level1 || 0
@@ -168,9 +214,15 @@ export async function generateStateDataOptimized(
             const population = await fetchStatePopulation(state.code)
             const needScore = calculateNeedScore(population, totalChargers)
 
-            // Weighted scoring: DC Fast = 1.0x, Level 2 = 0.7x, Level 1 = 0.3x
-            const weightedChargerCount = dcFast * 1.0 + level2 * 0.7 + level1 * 0.3
-            const score = calculateWeightedEVScore(weightedChargerCount, population)
+            const score = calculateEnhancedEVScore(population, {
+                dcfast: dcFast,
+                level2,
+                level1,
+                tesla: connectors.tesla,
+                nonTesla: connectors.ccs + connectors.j1772 + connectors.chademo,
+                totalPorts: ports.total,
+                totalChargers
+            })
 
             stateData.push({
                 state_name: state.name,

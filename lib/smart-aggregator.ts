@@ -186,7 +186,7 @@ export class SmartAggregator {
      */
     private static async processZipBatch(zipCodes: string[], useStaging: boolean): Promise<number> {
         const tableName = useStaging ? 'zip_level_data_staging' : 'zip_level_data'
-        const stationsTable = 'charging_stations'
+        const stationsTable = useStaging ? 'charging_stations_staging' : 'charging_stations'
         
         try {
             // Fetch stations for these specific ZIP codes
@@ -279,16 +279,21 @@ export class SmartAggregator {
                 })
                 
                 const totalChargers = zipStations.length
-                const weightedChargerCount = dcfast * 1.0 + level2 * 0.7 + level1 * 0.3
-                
-                // Get population from batch results
                 const population = populationMap.get(zipCode) || this.estimateZipPopulation()
-                
+
                 const { calculateNeedScore } = await import('./scoring')
-                const { calculateWeightedEVScore } = await import('./aggregation-optimized')
-                
+                const { calculateEnhancedEVScore } = await import('./aggregation-optimized')
+
                 const needScore = calculateNeedScore(population, totalChargers)
-                const score = calculateWeightedEVScore(weightedChargerCount, population)
+                const score = calculateEnhancedEVScore(population, {
+                    dcfast,
+                    level2,
+                    level1,
+                    tesla,
+                    nonTesla: ccs + j1772 + chademo,
+                    totalPorts,
+                    totalChargers
+                })
                 
                 zipData.push({
                     zip_code: zipCode,

@@ -9,29 +9,23 @@ export default function Icon() {
         (
             <div
                 style={{
-                    background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                    background: '#2563eb',
                     width: '100%',
                     height: '100%',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderRadius: '6px',
-                    border: '1px solid #334155'
                 }}
             >
                 <svg
-                    width="18"
-                    height="18"
+                    width="20"
+                    height="20"
                     viewBox="0 0 24 24"
-                    style={{
-                        filter: 'drop-shadow(0 0 4px #10b981)'
-                    }}
                 >
                     <path
                         d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"
-                        fill="#10b981"
-                        stroke="#10b981"
-                        strokeWidth="1"
+                        fill="white"
                     />
                 </svg>
             </div>

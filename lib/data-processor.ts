@@ -140,7 +140,18 @@ export async function clearChargingStations(): Promise<boolean> {
     return clearTable('charging_stations')
 }
 
-// NEW: Swap staging tables to production
+export async function getStagingStationCount(): Promise<number> {
+    const { count, error } = await supabaseAdmin
+        .from('charging_stations_staging')
+        .select('*', { count: 'exact', head: true })
+
+    if (error) {
+        console.error('Failed to get staging count:', error)
+        return 0
+    }
+    return count || 0
+}
+
 export async function swapStagingToProduction(): Promise<boolean> {
     try {
         console.log('Starting atomic swap from staging to production...')

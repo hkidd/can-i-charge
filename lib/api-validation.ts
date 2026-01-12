@@ -43,6 +43,8 @@ export const GeocodeResponseSchema = z.object({
 export const EVScoreResponseSchema = z.object({
   success: z.boolean(),
   score: z.number(),
+  grade: z.string(),
+  percentile: z.number(),
   location: z.string(),
   latitude: z.number(),
   longitude: z.number(),
@@ -51,6 +53,12 @@ export const EVScoreResponseSchema = z.object({
   coordinates: z.object({
     lat: z.number(),
     lng: z.number()
+  }),
+  breakdown: z.object({
+    nearby_chargers: z.number(),
+    fast_charging: z.number(),
+    network_diversity: z.number(),
+    charging_density: z.number()
   }),
   region: z.object({
     name: z.string(),
@@ -67,19 +75,14 @@ export const EVScoreResponseSchema = z.object({
     level1_count: z.number(),
     total: z.number(),
     nearest: z.object({
-      name: z.string(),
+      name: z.string().nullable(),
       distance: z.number(),
-      type: z.string(),
-      address: z.string()
+      type: z.string().nullable(),
+      address: z.string().nullable()
     }).nullable()
   }),
-  // Legacy fields
-  nearest_charger_distance: z.number().nullable(),
-  chargers_1mi: z.number(),
-  chargers_5mi: z.number(),
-  chargers_10mi: z.number(),
-  fast_charger_count: z.number(),
-  fast_charger_percentage: z.number()
+  nearest_charger_miles: z.number().nullable(),
+  chargers_within_5mi: z.number()
 })
 
 // Refresh data schemas

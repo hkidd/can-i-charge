@@ -34,23 +34,22 @@ export async function POST(request: NextRequest) {
 
 // GET endpoint for easier testing
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const secret = searchParams.get('secret')
-  
-  if (secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ 
+  const authHeader = request.headers.get('authorization')
+
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({
       error: 'Unauthorized',
-      message: 'Please provide the correct secret in the query parameter'
+      message: 'Please provide the correct secret in the Authorization header'
     }, { status: 401 })
   }
-  
+
   // Create a new request with proper auth header
   const newRequest = new NextRequest(request.url, {
     method: 'POST',
     headers: {
-      'authorization': `Bearer ${secret}`
+      'authorization': authHeader
     }
   })
-  
+
   return POST(newRequest)
 }

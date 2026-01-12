@@ -4,6 +4,23 @@ import { validateResponse, EVScoreResponseSchema } from '@/lib/api-validation'
 import { logError } from '@/lib/error-handling'
 import { rateLimit, getClientId } from '@/lib/rate-limit'
 
+// Convert score to letter grade
+function getGrade(score: number): string {
+    if (score >= 90) return 'A+'
+    if (score >= 85) return 'A'
+    if (score >= 80) return 'A-'
+    if (score >= 75) return 'B+'
+    if (score >= 70) return 'B'
+    if (score >= 65) return 'B-'
+    if (score >= 60) return 'C+'
+    if (score >= 55) return 'C'
+    if (score >= 50) return 'C-'
+    if (score >= 45) return 'D+'
+    if (score >= 40) return 'D'
+    if (score >= 35) return 'D-'
+    return 'F'
+}
+
 // Helper: Check if coordinates are in US
 function isValidUSCoordinates(lat: number, lng: number): boolean {
     // Continental US + Alaska + Hawaii approximate bounds
@@ -78,8 +95,60 @@ export async function GET(request: NextRequest) {
     let lat = parseFloat(searchParams.get('lat') || '0')
     let lng = parseFloat(searchParams.get('lng') || '0')
     let address = searchParams.get('address') || ''
+    const zip = searchParams.get('zip') || ''
+    const county = searchParams.get('county') || ''
+    const state = searchParams.get('state') || ''
 
-    // If address is provided but no coordinates, geocode it first
+    // Handle ZIP code lookup
+    if (zip && !address && (!lat || !lng)) {
+        const { data: zipData } = await supabaseAdmin
+            .from('zip_level_data')
+            .select('center_lat, center_lng, zip_code, state')
+            .eq('zip_code', zip)
+            .limit(1)
+            .single()
+
+        if (zipData) {
+            lat = zipData.center_lat
+            lng = zipData.center_lng
+            address = `${zipData.zip_code}, ${zipData.state}`
+        }
+    }
+
+    // Handle county/state lookup
+    if (county && state && !address && (!lat || !lng)) {
+        const { data: countyData } = await supabaseAdmin
+            .from('county_level_data')
+            .select('center_lat, center_lng, county_name, state')
+            .ilike('county_name', county)
+            .eq('state', state.toUpperCase())
+            .limit(1)
+            .single()
+
+        if (countyData) {
+            lat = countyData.center_lat
+            lng = countyData.center_lng
+            address = `${countyData.county_name} County, ${countyData.state}`
+        }
+    }
+
+    // Handle state-only lookup
+    if (state && !county && !zip && !address && (!lat || !lng)) {
+        const { data: stateData } = await supabaseAdmin
+            .from('state_level_data')
+            .select('center_lat, center_lng, state_name')
+            .ilike('state_name', state)
+            .limit(1)
+            .single()
+
+        if (stateData) {
+            lat = stateData.center_lat
+            lng = stateData.center_lng
+            address = stateData.state_name
+        }
+    }
+
+    // If address is provided but no coordinates, geocode it
     if (address && (!lat || !lng)) {
         try {
             const response = await fetch(
@@ -205,84 +274,94 @@ export async function GET(request: NextRequest) {
             )
         }
 
-        // Get nearby chargers for detailed breakdown
-        const { data: nearbyChargers, error: chargersError } =
-            await supabaseAdmin
-                .from('charging_stations')
-                .select('*')
-                .gte('latitude', lat - 0.15)
-                .lte('latitude', lat + 0.15)
-                .gte('longitude', lng - 0.15)
-                .lte('longitude', lng + 0.15)
-
-        if (chargersError) {
-            logError(chargersError, 'api.ev-score.chargers-lookup', { lat, lng })
+        // Use pre-aggregated data from the nearest region
+        const regionData = nearestRegion as {
+            ev_infrastructure_score?: number
+            charger_count?: number
+            fast_charger_count?: number
+            avg_distance_to_charger?: number
+            population?: number
+            zip_code?: string
+            county_name?: string
+            state_name?: string
+            state?: string
+            center_lat: number
+            center_lng: number
         }
 
-        // Calculate distances to chargers
-        const chargersWithDistance = (nearbyChargers || [])
-            .map((charger) => ({
-                ...charger,
-                distance: calculateDistance(
-                    lat,
-                    lng,
-                    charger.latitude,
-                    charger.longitude
-                )
-            }))
-            .sort((a, b) => a.distance - b.distance)
+        // Get the pre-calculated score directly from the aggregated data
+        const score = Math.round(regionData.ev_infrastructure_score ?? 0)
+        const grade = getGrade(score)
 
-        // Count chargers within different radii
-        const within1Mile = chargersWithDistance.filter(
-            (c) => c.distance <= 1
-        ).length
-        const within5Miles = chargersWithDistance.filter(
-            (c) => c.distance <= 5
-        ).length
-        const within10Miles = chargersWithDistance.filter(
-            (c) => c.distance <= 10
-        ).length
+        // Get charger counts from pre-aggregated data
+        const totalChargers = regionData.charger_count ?? 0
+        const dcFastCount = regionData.fast_charger_count ?? 0
+        const level2Count = Math.max(0, totalChargers - dcFastCount) // Estimate L2 as remainder
+        const level1Count = 0 // L1 is rare, default to 0
 
-        // Count by type
-        const dcFastCount = chargersWithDistance.filter(
-            (c) => c.charger_type_detailed === 'dcfast'
-        ).length
-        const level2Count = chargersWithDistance.filter(
-            (c) => c.charger_type_detailed === 'level2'
-        ).length
-        const level1Count = chargersWithDistance.filter(
-            (c) => c.charger_type_detailed === 'level1'
-        ).length
+        // Estimate chargers within distances based on total and avg distance
+        const avgDistance = regionData.avg_distance_to_charger ?? 10
+        // If average distance is small, more chargers are likely close by
+        const within1Mile = avgDistance <= 1 ? Math.ceil(totalChargers * 0.3) :
+                           avgDistance <= 3 ? Math.ceil(totalChargers * 0.1) : 0
+        const within5Miles = avgDistance <= 5 ? totalChargers :
+                            Math.ceil(totalChargers * 0.5)
+        const within10Miles = totalChargers
 
-        // Get nearest charger
-        const nearestCharger = chargersWithDistance[0] || null
+        // Calculate breakdown scores based on available data
+        // 1. Nearby chargers score (max 40 points)
+        const nearbyScore = Math.min(40, Math.round((score / 100) * 40))
 
-        // Calculate fast charger percentage
-        const totalChargers = within10Miles || 1
-        const fastChargerPercentage = Math.round(
-            (dcFastCount / totalChargers) * 100
-        )
+        // 2. Fast charging score (max 25 points)
+        const fastScore = Math.min(25, Math.round((dcFastCount / Math.max(1, totalChargers)) * 25 * (score / 50)))
+
+        // 3. Network diversity score (max 20 points) - estimate based on total charger count
+        const diversityScore = totalChargers >= 10 ? 20 : totalChargers >= 5 ? 15 : totalChargers >= 2 ? 10 : 0
+
+        // 4. Charging density score (max 15 points)
+        const densityScore = Math.max(0, Math.min(15, Math.round(15 - avgDistance * 1.5)))
+
+        // Calculate percentile (how this score compares to all ZIP codes)
+        const { count: belowCount } = await supabaseAdmin
+            .from('zip_level_data')
+            .select('*', { count: 'exact', head: true })
+            .lt('ev_infrastructure_score', score)
+
+        const { count: totalCount } = await supabaseAdmin
+            .from('zip_level_data')
+            .select('*', { count: 'exact', head: true })
+
+        const percentile = totalCount && totalCount > 0
+            ? Math.round(((belowCount || 0) / totalCount) * 100)
+            : 50
 
         const location = address || `${lat.toFixed(4)}, ${lng.toFixed(4)}`
-        const score = (nearestRegion as any).ev_infrastructure_score || 0
 
         const response = {
             success: true,
             score,
+            grade,
+            percentile,
             location,
             latitude: lat,
             longitude: lng,
             message: getScoreMessage(score, location),
             address,
             coordinates: { lat, lng },
+            breakdown: {
+                nearby_chargers: nearbyScore,
+                fast_charging: fastScore,
+                network_diversity: diversityScore,
+                charging_density: densityScore
+            },
             region: {
                 name:
-                    (nearestRegion as any).zip_code ||
-                    (nearestRegion as any).county_name ||
-                    (nearestRegion as any).state_name ||
+                    regionData.zip_code ||
+                    regionData.county_name ||
+                    regionData.state_name ||
                     'Unknown',
                 type: regionType,
-                population: (nearestRegion as any).population || null,
+                population: regionData.population || null,
                 distance: minDistance
             },
             chargers: {
@@ -292,23 +371,18 @@ export async function GET(request: NextRequest) {
                 dcfast_count: dcFastCount,
                 level2_count: level2Count,
                 level1_count: level1Count,
-                total: chargersWithDistance.length,
-                nearest: nearestCharger
+                total: totalChargers,
+                nearest: avgDistance < 50
                     ? {
-                          name: nearestCharger.name,
-                          distance: nearestCharger.distance,
-                          type: nearestCharger.charger_type_detailed,
-                          address: nearestCharger.address
+                          name: null,
+                          distance: avgDistance,
+                          type: dcFastCount > 0 ? 'dcfast' : 'level2',
+                          address: null
                       }
                     : null
             },
-            // Legacy format support
-            nearest_charger_distance: nearestCharger?.distance || null,
-            chargers_1mi: within1Mile,
-            chargers_5mi: within5Miles,
-            chargers_10mi: within10Miles,
-            fast_charger_count: dcFastCount,
-            fast_charger_percentage: fastChargerPercentage
+            nearest_charger_miles: avgDistance < 50 ? avgDistance : null,
+            chargers_within_5mi: within5Miles
         }
         
         // Validate response

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { Analytics } from '@vercel/analytics/react'
+import { GeistSans } from 'geist/font/sans'
+import { GeistMono } from 'geist/font/mono'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -8,7 +10,7 @@ export const metadata: Metadata = {
         'Discover EV charging infrastructure availability for any US address. Get instant scores and insights for electric vehicle charging stations.',
     keywords: [
         'EV charging',
-        'electric vehicle', 
+        'electric vehicle',
         'charging stations',
         'EV infrastructure',
         'electric car charging',
@@ -24,6 +26,7 @@ export const metadata: Metadata = {
         userScalable: false,
         viewportFit: 'cover'
     },
+    themeColor: '#030712',
     openGraph: {
         title: 'Can I Charge? - EV Charging Infrastructure Scores',
         description: 'Discover EV charging infrastructure availability for any US address. Get instant scores and insights.',
@@ -65,8 +68,8 @@ export default function RootLayout({
     children: React.ReactNode
 }) {
     return (
-        <html lang='en'>
-            <body>
+        <html lang='en' className={`${GeistSans.variable} ${GeistMono.variable}`}>
+            <body className={GeistSans.className}>
                 {children}
                 <Analytics />
             </body>
