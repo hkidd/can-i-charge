@@ -726,19 +726,7 @@ export default function LandingPage() {
                                 <ul className='space-y-3 text-sm'>
                                     <li>
                                         <a
-                                            href='https://github.com'
-                                            target='_blank'
-                                            rel='noopener noreferrer'
-                                            className='text-gray-500 hover:text-gray-900 transition-colors'
-                                        >
-                                            GitHub
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a
-                                            href='https://github.com/issues'
-                                            target='_blank'
-                                            rel='noopener noreferrer'
+                                            href='/support#feedback'
                                             className='text-gray-500 hover:text-gray-900 transition-colors'
                                         >
                                             Feedback
