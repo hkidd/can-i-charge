@@ -113,7 +113,9 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
     const authHeader = request.headers.get('authorization')
     const searchParams = request.nextUrl.searchParams
-    const level = searchParams.get('level') || 'states'
+    // Support single level param or default to all levels for cron
+    const levelParam = searchParams.get('level')
+    const levels = levelParam ? [levelParam] : ['states', 'counties', 'zips']
 
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -127,7 +129,7 @@ export async function GET(request: NextRequest) {
             'content-type': 'application/json'
         },
         body: JSON.stringify({
-            levels: [level],
+            levels: levels,
             useStaging: true
         })
     })

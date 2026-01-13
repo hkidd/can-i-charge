@@ -1,12 +1,15 @@
 {
-  "crons": [{
-    "path": "/api/cron/daily-refresh",
-    "schedule": "0 3 * * *"
-  }],
-  "functions": {
-    "app/api/cron/daily-refresh/route.ts": {
-      "maxDuration": 300
+  "crons": [
+    {
+      "path": "/api/refresh-data",
+      "schedule": "0 3 * * *"
     },
+    {
+      "path": "/api/smart-update",
+      "schedule": "30 3 * * *"
+    }
+  ],
+  "functions": {
     "app/api/refresh-data/route.ts": {
       "maxDuration": 300
     },

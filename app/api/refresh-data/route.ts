@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
     processNRELStation,
     batchInsertStations,
-    clearTable
+    clearTable,
+    NRELStation
 } from '@/lib/data-processor'
 import { generateStateData } from '@/lib/aggregation'
 import { generateStateDataOptimized } from '@/lib/aggregation-optimized'
@@ -71,12 +72,12 @@ export async function POST(request: NextRequest) {
         logs.push('Processing stations...')
         const processedStations = rawStations
             .filter(
-                (station: any) =>
+                (station: NRELStation) =>
                     station.latitude &&
                     station.longitude &&
                     station.station_name
             )
-            .map((station: any) => processNRELStation(station))
+            .map((station: NRELStation) => processNRELStation(station))
 
         logs.push(`✓ Processed ${processedStations.length} valid stations`)
 
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
         await clearTable('charging_stations_staging')
         await clearTable('state_level_data_staging')
         await clearTable('county_level_data_staging')
-        await clearTable('neighborhood_level_data_staging')
+        // Note: zip_level_data_staging is handled by smart-update incrementally
         logs.push('✓ Staging tables cleared')
 
         logs.push('Inserting stations into staging...')
