@@ -9,8 +9,7 @@ import {
     AnimatedText,
     Button,
     USMapDots,
-    AnimatedBarChart,
-    DraggableCarousel
+    AnimatedBarChart
 } from '@/components/landing'
 import EVScoreWidget, { ScoreData } from '@/components/EVScoreWidget'
 import Header from '@/components/Header'
@@ -39,8 +38,6 @@ const DEMO_SCORE_DATA: ScoreData = {
     },
     nearest_charger_miles: 0.3
 }
-
-const WIDGET_SIZES = ['compact', 'standard', 'detailed'] as const
 
 // Section theme configurations - Electric Blue palette with bold color blocking
 const SECTION_THEMES = {
@@ -138,7 +135,7 @@ export default function LandingPage() {
         fetchTopStates()
     }, [])
 
-    const handleScoreResult = (data: any) => {
+    const handleScoreResult = (data: { location?: string }) => {
         if (data?.location) {
             setWidgetAddress(data.location)
             setShowWidget(true)
@@ -166,10 +163,18 @@ export default function LandingPage() {
             <div className='text-foreground'>
                 {/* Navigation - Dynamic color based on section */}
                 <Header
-                    currentPage="home"
-                    theme={SECTION_THEMES[currentSection].text === 'dark' ? 'light' : 'dark'}
+                    currentPage='home'
+                    theme={
+                        SECTION_THEMES[currentSection].text === 'dark'
+                            ? 'light'
+                            : 'dark'
+                    }
                     navBg={SECTION_THEMES[currentSection].navBg}
-                    borderColor={SECTION_THEMES[currentSection].text === 'dark' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)'}
+                    borderColor={
+                        SECTION_THEMES[currentSection].text === 'dark'
+                            ? 'rgba(0,0,0,0.05)'
+                            : 'rgba(255,255,255,0.05)'
+                    }
                 />
 
                 {/* Hero Section - Dark */}
@@ -226,22 +231,6 @@ export default function LandingPage() {
                             </motion.div>
                         )}
                     </div>
-
-                    {/* Scroll indicator */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 1.5 }}
-                        className='absolute bottom-8 left-1/2 -translate-x-1/2'
-                    >
-                        <motion.div
-                            animate={{ y: [0, 8, 0] }}
-                            transition={{ repeat: Infinity, duration: 2 }}
-                            className='w-6 h-10 rounded-full border-2 border-white/20 flex items-start justify-center p-2'
-                        >
-                            <motion.div className='w-1 h-2 bg-white/40 rounded-full' />
-                        </motion.div>
-                    </motion.div>
                 </section>
 
                 {/* Stats Section - Clean White */}
@@ -574,39 +563,30 @@ export default function LandingPage() {
                                     </Button>
                                 </div>
                             </AnimatedSection>
-
-                            {/* Draggable Widget Carousel */}
+                            {/* Widget Preview */}
                             <AnimatedSection direction='right'>
-                                <div className='h-[480px] flex items-center'>
-                                    <DraggableCarousel>
-                                        {WIDGET_SIZES.map((size) => (
-                                            <div
-                                                key={size}
-                                                className='flex flex-col items-center'
-                                            >
-                                                <div className='text-xs font-medium text-gray-500 mb-3 uppercase tracking-wider'>
-                                                    {size}
-                                                </div>
-                                                <EVScoreWidget
-                                                    demoData={DEMO_SCORE_DATA}
-                                                    size={size}
-                                                    theme='glass'
-                                                    showBreakdown={
-                                                        size === 'detailed'
-                                                    }
-                                                    showBranding={
-                                                        size !== 'compact'
-                                                    }
-                                                />
-                                            </div>
-                                        ))}
-                                    </DraggableCarousel>
+                                <div className='flex justify-center lg:justify-start'>
+                                    <motion.div
+                                        animate={{ y: [0, -8, 0] }}
+                                        transition={{
+                                            duration: 4,
+                                            repeat: Infinity,
+                                            ease: 'easeInOut'
+                                        }}
+                                    >
+                                        <EVScoreWidget
+                                            demoData={DEMO_SCORE_DATA}
+                                            size='standard'
+                                            theme='glass'
+                                            showBreakdown={false}
+                                            showBranding={true}
+                                        />
+                                    </motion.div>
                                 </div>
                             </AnimatedSection>
                         </div>
                     </div>
                 </section>
-
                 {/* CTA Section - Simple off-white */}
                 <section data-section='cta' className='py-32 px-6 bg-[#fafafa]'>
                     <div className='max-w-4xl mx-auto text-center'>
@@ -624,7 +604,6 @@ export default function LandingPage() {
                         </AnimatedSection>
                     </div>
                 </section>
-
                 {/* Footer - Clean Gray */}
                 <footer className='bg-gray-100 border-t border-gray-200'>
                     <div className='max-w-6xl mx-auto px-6 py-16'>
@@ -649,7 +628,6 @@ export default function LandingPage() {
                                     The EV Readiness Score for any US location.
                                 </p>
                             </div>
-
                             {/* Product */}
                             <div>
                                 <div className='text-sm font-semibold text-gray-900 mb-4'>
@@ -682,7 +660,6 @@ export default function LandingPage() {
                                     </li>
                                 </ul>
                             </div>
-
                             {/* Resources */}
                             <div>
                                 <div className='text-sm font-semibold text-gray-900 mb-4'>
@@ -717,7 +694,6 @@ export default function LandingPage() {
                                     </li>
                                 </ul>
                             </div>
-
                             {/* Connect */}
                             <div>
                                 <div className='text-sm font-semibold text-gray-900 mb-4'>
@@ -735,7 +711,6 @@ export default function LandingPage() {
                                 </ul>
                             </div>
                         </div>
-
                         {/* Bottom Bar */}
                         <div className='border-t border-gray-200 pt-8 flex flex-col md:flex-row items-center justify-between gap-4'>
                             <div className='text-gray-400 text-sm'>

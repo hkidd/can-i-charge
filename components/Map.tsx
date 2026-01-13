@@ -257,10 +257,30 @@ export default function Map() {
 
             {/* --- FUTURISTIC HOVER CARD --- */}
             {hoveredState && (
-                <div className='absolute top-36 right-4 md:right-8 pointer-events-none z-20'>
-                    <div className='hud-panel rounded-2xl p-5 min-w-[280px] md:min-w-[320px] animate-slide-in backdrop-blur-xl'>
+                <div className='absolute top-36 right-4 md:right-8 pointer-events-auto md:pointer-events-none z-20'>
+                    <div className='hud-panel rounded-2xl p-5 min-w-[280px] md:min-w-[320px] animate-slide-in backdrop-blur-xl relative'>
+                        {/* Close button - mobile only */}
+                        <button
+                            onClick={() => setHoveredState(null)}
+                            className='absolute top-3 right-3 w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors text-foreground/60 hover:text-foreground md:hidden'
+                            aria-label='Close'
+                        >
+                            <svg
+                                className='w-4 h-4'
+                                fill='none'
+                                stroke='currentColor'
+                                viewBox='0 0 24 24'
+                            >
+                                <path
+                                    strokeLinecap='round'
+                                    strokeLinejoin='round'
+                                    strokeWidth={2}
+                                    d='M6 18L18 6M6 6l12 12'
+                                />
+                            </svg>
+                        </button>
                         {/* Header: Region Name */}
-                        <h2 className='text-2xl font-bold text-foreground mb-1 tracking-tight'>
+                        <h2 className='text-2xl font-bold text-foreground mb-1 tracking-tight pr-8 md:pr-0'>
                             {hoveredState.state_name ||
                                 hoveredState.county_name ||
                                 hoveredState.zip_code}
@@ -368,7 +388,10 @@ export default function Map() {
             <SupportBanner />
 
             {/* --- LEGEND --- */}
-            <div className='absolute bottom-8 left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0 z-10 w-[260px]'>
+            <div
+                className='absolute left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0 z-10 w-[260px]'
+                style={{ bottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}
+            >
                 <div className='hud-panel rounded-full px-6 py-3'>
                     <div className='flex items-center justify-center gap-6 text-xs font-medium'>
                         <div className='flex items-center gap-2'>

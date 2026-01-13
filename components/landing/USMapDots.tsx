@@ -148,7 +148,7 @@ export default function USMapDots() {
             />
             <svg
                 viewBox='0 0 100 90'
-                className='absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] sm:w-[130%] md:w-[110%] lg:w-[100%] xl:w-[90%] min-w-[600px] max-w-[1400px] h-auto opacity-[0.6]'
+                className='absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] sm:w-[110%] md:w-[100%] lg:w-[95%] xl:w-[90%] max-w-[1200px] h-auto opacity-[0.6]'
                 preserveAspectRatio='xMidYMid meet'
             >
                 {/* Regular dots */}

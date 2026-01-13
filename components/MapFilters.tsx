@@ -42,12 +42,13 @@ export default function MapFilters({
             className={`
             ${
                 isMobile
-                    ? 'fixed inset-x-0 bottom-0 hud-panel border-t border-white/10 rounded-t-3xl p-6 pb-8 z-50 animate-slide-up'
+                    ? 'fixed inset-x-0 bottom-0 hud-panel border-t border-white/10 rounded-t-3xl p-6 z-50 animate-slide-up'
                     : isMinimized
                     ? 'hud-panel rounded-full px-4 py-3 min-w-fit'
                     : 'hud-panel rounded-2xl p-5 min-w-[200px] max-w-[260px]'
             }
         `}
+            style={isMobile ? { paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' } : undefined}
         >
             {isMobile && (
                 <div className='flex items-center justify-between mb-6'>
