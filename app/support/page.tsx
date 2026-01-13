@@ -291,7 +291,7 @@ export default function SupportPage() {
                         </div>
                     </motion.div>
 
-                    {/* Manage Subscription */}
+                    {/* Manage Subscription - Hidden until subscriptions are available
                     <motion.div
                         className="mb-16"
                         initial={{ opacity: 0, y: 20 }}
@@ -316,8 +316,9 @@ export default function SupportPage() {
                             <ExternalLink className="w-4 h-4 text-white/30 group-hover:text-white/60 transition-colors" />
                         </a>
                     </motion.div>
+                    */}
 
-                    {/* Lost API Key */}
+                    {/* Lost API Key - Hidden until API keys are available
                     <motion.div
                         className="mb-16"
                         initial={{ opacity: 0, y: 20 }}
@@ -366,6 +367,7 @@ export default function SupportPage() {
                             </form>
                         </div>
                     </motion.div>
+                    */}
 
                     {/* Feedback Section */}
                     <motion.div
