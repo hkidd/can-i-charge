@@ -6,10 +6,14 @@ export async function GET() {
     const start = Date.now()
     try {
         const database = getSupabaseAdmin()
-        const [stations, refresh] = await Promise.all([
-            database.from('charging_stations').select('id').limit(1),
+        const signal = AbortSignal.timeout(3000)
+        const [stations, refresh, active] = await Promise.all([
+            database.from('charging_stations').select('id').limit(1).abortSignal(signal),
             database.from('station_refresh_runs').select('completed_at,station_count')
-                .eq('status', 'published').order('completed_at', { ascending: false }).limit(1).maybeSingle()
+                .eq('status', 'published').order('completed_at', { ascending: false }).limit(1).abortSignal(signal).maybeSingle(),
+            database.from('station_refresh_runs').select('id')
+                .in('status', ['fetching', 'staged', 'aggregating', 'ready'])
+                .gt('lease_expires_at', new Date(start).toISOString()).limit(1).abortSignal(signal).maybeSingle()
         ])
         if (stations.error) return NextResponse.json({ status: 'unhealthy', message: 'Database connection failed' }, { status: 503 })
         const completed = typeof refresh.data?.completed_at === 'string' ? Date.parse(refresh.data.completed_at) : NaN
@@ -18,6 +22,7 @@ export async function GET() {
         return NextResponse.json({
             status: fresh ? 'healthy' : 'degraded',
             message: fresh ? 'Station data is current' : 'Station refresh is missing or stale',
+            maintenance: { active: !active.error && !!active.data, message: 'Charging data is being updated. Some results may be temporarily unavailable.' },
             checks: {
                 database: 'connected', responseTime: `${Date.now() - start}ms`,
                 refresh: { status: fresh ? 'fresh' : Number.isFinite(age) ? 'stale' : 'unknown',
@@ -25,7 +30,7 @@ export async function GET() {
                     station_count: refresh.data?.station_count ?? null }
             },
             timestamp: new Date().toISOString(), version: process.env.npm_package_version || '0.2.0'
-        }, { status: fresh ? 200 : 503 })
+        }, { status: fresh ? 200 : 503, headers: { 'Cache-Control': 'no-store' } })
     } catch {
         return NextResponse.json({ status: 'unhealthy', message: 'Health check failed' }, { status: 503 })
     }

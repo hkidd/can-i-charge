@@ -1,12 +1,12 @@
 # Production Deployment Guide
 
-## Current review status
+## Initial production rollout record
 
-Local validation passes 172 tests, TypeScript, ESLint with no warnings, and the
+Validation for the 2026-11-25 release passed 172 tests, TypeScript, ESLint with no warnings, and the
 Webpack production build using placeholder public Supabase configuration.
 All nine production migrations are applied. The first complete snapshot published
 at `2026-11-24T22:42:49.515715Z` under run
-`875eb121-43c0-42c2-8090-381c03a9cf7c`. Health returns 200. No billing events,
+`875eb121-43c0-42c2-8090-381c03a9cf7c`. Health returned 200. No billing events,
 charges, or subscriber emails were generated during verification.
 
 The agreed rollout uses the existing production projects. A separate staging
@@ -38,13 +38,13 @@ and pulled Vercel configuration remain in ignored, mode-600 local files.
 
 The live project is Supabase `lwymugddoqggxkvilodu` and Vercel
 `prj_hyCgw7mcUTcFpIh6mFKiq6vWuFng` in team `team_vrn4VFuMcpmv1r04IGCjo8ig`.
-The final production deployment is `dpl_BLzSKmtBfXHqySQBe6jdBu7GdfJ3`
+The last direct-upload deployment was `dpl_BLzSKmtBfXHqySQBe6jdBu7GdfJ3`
 (`can-i-charge-hj21gzfen-hkidds-projects.vercel.app`), built from the uncommitted
-working tree on `fix/priority-security`. No commit or Git push was made.
+working tree on `fix/priority-security`. That release preceded Git reconciliation.
 The deployment-source manifest SHA-256 is
 `558d14298884fc69137cb48acf6b0e084a0ebfdb204e536d38fb29198be653d1`;
 its file manifest is retained locally in `.vercel/release-source-manifest.json`.
-Both custom domains point to this deployment. Automatic production-domain
+Both custom domains pointed to that deployment. Automatic production-domain
 assignment is restored. The deployed schedules are `/api/refresh-data` at
 03:00 UTC and `/api/smart-update` at 03:30 UTC daily.
 The overnight scheduled refresh published successfully at
@@ -578,3 +578,49 @@ retrieved all 51 state, 3,142 county, and 34,074 ZIP references. ZIP reads took
 (84,538) station snapshots loaded in 39.6 seconds combined. No schema changes
 or timeout increases are required. Release this patch from its reviewed GitHub
 commit; deployment records must identify that commit rather than a dirty tree.
+
+
+## Git reconciliation and service-status follow-up — 2026-11-26
+
+The six reviewed reconciliation commits were pushed to `fix/priority-security`.
+The additional ZIP-read correction is commit `1cdff9258cad3ee3a3b993b07386bd5699015112`,
+released from GitHub as production deployment `dpl_HjHuJZ4b8L5iAGEiGPB2q9AFYDxQ`.
+Both custom domains were verified on that release. The branch remains separate
+from `main`; subsequent production builds must also identify their Git commit.
+
+A fresh full archive before verification is stored at
+`~/.local/share/can-i-charge/backups/2026-11-26T17-15-00-222Z/`, 188,296,552 bytes,
+SHA-256 `ed0e1cf86023c923f18c528e8b8b049227ab39dd954b8714a1141cb7f2bce5ba`.
+Required table data, ACL entries, and full archive decompression passed; restore
+was not rehearsed.
+
+The follow-up verification staged 84,704 stations under run
+`bb943047-b5d3-49f5-8fad-939ab74ff614`. It passed the previous ZIP-read failure
+point but lost Data API connection-pool access during ZIP aggregate writes.
+The stopped run was explicitly marked failed through the database owner
+connection after failure reporting through the Data API also timed out.
+The published snapshot was retained. Public state/county requests also timed
+out during that period and recovered after the load subsided. Database health
+reported healthy, with no lingering active queries seen in the subsequent
+connection inspection. The precise cause of the pool failure is not established.
+
+The follow-up patch cancels superseded region and point requests, debounces
+map movement, propagates browser cancellation to backend reads, and avoids
+reporting normal cancellation as a server exception. Successful public map
+responses have short browser/CDN caching and permit stale serving during an
+origin error. Aggregate writes use 250-row batches with a short pause between
+batches to reduce peak JSON expansion and sustained write pressure. None of
+these changes bypass snapshot validation or publication safeguards.
+
+The header automatically shows an active-refresh banner, degraded/stale-data
+notice, or temporary-unavailability notice. When known, it shows the last
+successful publication time. Health polling runs at most once per visible-tab
+minute, uses bounded reads, and never triggers a refresh. The banner is advisory:
+users retain access to available published data. Map controls move down by the
+measured banner height so they remain usable on desktop and mobile.
+
+Local validation passed 179 tests, TypeScript, ESLint, and whitespace checks.
+Isolated browser checks exercised active, unavailable, and recovered status at
+1366×768 and 390×664. Header bottoms were 115/131px and map searches began at
+130/158px, respectively. Eight rapid filter changes issued two data requests,
+with the superseded request cancelled; no browser exceptions were observed.

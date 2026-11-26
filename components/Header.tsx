@@ -1,5 +1,6 @@
 'use client'
 
+import ServiceStatusBanner from './ServiceStatusBanner'
 import { Zap } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/landing'
@@ -93,6 +94,7 @@ export default function Header({
                     )}
                 </NavContainer>
             </div>
+            <ServiceStatusBanner />
         </nav>
     )
 }
