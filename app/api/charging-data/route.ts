@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     try {
         const database = getSupabaseAdmin()
-        const signal = AbortSignal.timeout(15000)
+        const signal = AbortSignal.any([request.signal, AbortSignal.timeout(15000)])
         let data: Record<string, unknown>[]
         if (useFunction) {
             const geometries = await readAllPages<Record<string, unknown>>((from, to) => database
@@ -68,8 +68,9 @@ export async function GET(request: NextRequest) {
         const response = validateResponse(ChargingDataResponseSchema, {
             zoom, granularity, bounds: { north, south, east, west }, count: data.length, data
         }, 'charging-data')
-        return NextResponse.json(response)
+        return NextResponse.json(response, { headers: { 'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300, stale-if-error=86400' } })
     } catch (error) {
+        if (request.signal.aborted) return new NextResponse(null, { status: 499 })
         logError(error, 'api.charging-data', { zoom, north, south, east, west })
         return NextResponse.json({ error: 'Failed to fetch charging data' }, { status: 503 })
     }

@@ -6,6 +6,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import AddressSearch from './AddressSearch'
 import SupportBanner from './SupportBanner'
 import {
+    cancelMapLoads,
     loadStatePolygons,
     loadCountyPolygons,
     loadZipPolygons,
@@ -72,8 +73,10 @@ export default function Map() {
         })
     }, [])
 
+    const loadGeneration = useRef(0)
     const loadMapData = useCallback(async () => {
         if (!map.current) return
+        const generation = ++loadGeneration.current
 
         try {
             const zoom = map.current.getZoom()
@@ -99,6 +102,7 @@ export default function Map() {
                     (e) => console.error(e)
                 )
 
+            if (generation !== loadGeneration.current || !map.current) return
             if (zoom >= 13) {
                 await loadChargerPoints(map.current, chargerFiltersRef.current)
             } else {
@@ -122,6 +126,7 @@ export default function Map() {
     useEffect(() => {
         if (map.current) return
         const interactions = configuredInteractions.current
+        let moveTimer: ReturnType<typeof setTimeout> | undefined
 
         try {
             map.current = new mapboxgl.Map({
@@ -151,16 +156,19 @@ export default function Map() {
                 )
             })
 
-            map.current.on('moveend', async () => {
-                try {
-                    await loadMapData()
-                } catch (error) {
-                    console.error('Failed to update map data:', error)
-                    // Don't show error for move events to avoid spam
-                }
+            map.current.on('movestart', () => {
+                loadGeneration.current++
+                clearTimeout(moveTimer)
+                if (map.current) cancelMapLoads(map.current)
+            })
+            map.current.on('moveend', () => {
+                clearTimeout(moveTimer)
+                moveTimer = setTimeout(() => { void loadMapData() }, 250)
             })
 
             return () => {
+                clearTimeout(moveTimer)
+                if (map.current) cancelMapLoads(map.current)
                 map.current?.remove()
                 map.current = null
                 interactions.clear()
@@ -210,7 +218,7 @@ export default function Map() {
             <div ref={mapContainer} className='w-full h-full' />
 
             {/* Top Controls - offset for fixed header */}
-            <div className='absolute top-20 left-4 right-4 z-10 flex flex-col gap-3'>
+            <div className='absolute left-4 right-4 z-10 flex flex-col gap-3' style={{ top: 'calc(5rem + var(--service-banner-height, 0px))' }}>
                 {/* Centered search with side buttons */}
                 <div className='relative flex items-center min-h-[48px]'>
                     {/* Mobile Filter Button - Left Side */}

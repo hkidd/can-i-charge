@@ -45,8 +45,30 @@ interface MapRegion extends ScoreInputs {
 }
 type FilteredRegion = MapRegion & { score: number | null; filtered_charger_count: number | null; data_quality: ScoreDataQuality; traffic_message: string | null; model_message: string }
 const mapsWithPointHandlers = new WeakSet<mapboxgl.Map>()
-const regionLoads = new WeakMap<mapboxgl.Map, object>()
-const pointLoads = new WeakMap<mapboxgl.Map, object>()
+interface MapLoad { controller: AbortController }
+const regionLoads = new WeakMap<mapboxgl.Map, MapLoad>()
+const pointLoads = new WeakMap<mapboxgl.Map, MapLoad>()
+
+function beginLoad(loads: WeakMap<mapboxgl.Map, MapLoad>, map: mapboxgl.Map) {
+    loads.get(map)?.controller.abort()
+    const request = { controller: new AbortController() }
+    loads.set(map, request)
+    return request
+}
+export function cancelMapLoads(map: mapboxgl.Map) {
+    regionLoads.get(map)?.controller.abort()
+    pointLoads.get(map)?.controller.abort()
+}
+async function fetchMapData(url: string, signal: AbortSignal) {
+    const response = await fetch(url, { signal })
+    if (!response.ok) {
+        window.dispatchEvent(new Event('cic:data-unavailable'))
+        throw new Error('Charging data is temporarily unavailable')
+    }
+    const body = await response.json()
+    window.dispatchEvent(new Event('cic:data-available'))
+    return body as { data: MapRegion[] }
+}
 
 
 const applyThemeColors = (map: mapboxgl.Map, opportunityMode: boolean = false) => {
@@ -121,17 +143,15 @@ export async function loadStatePolygons(
     setupInteractions: (type: string) => void,
     onError?: (error: Error) => void
 ) {
-    const request = {}
-    regionLoads.set(map, request)
+    const request = beginLoad(regionLoads, map)
     try {
         const topoResponse = await fetch(
-            'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
+            'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json', { signal: request.controller.signal }
         )
         const topology = await topoResponse.json() as Topology<{ states: GeometryCollection<{ name: string }> }>
         const statesGeo = topojson.feature(topology, topology.objects.states)
 
-        const dataResponse = await fetch('/api/charging-data?zoom=4')
-        const scoreData: { data: MapRegion[] } = await dataResponse.json()
+        const scoreData = await fetchMapData('/api/charging-data?zoom=4', request.controller.signal)
 
         const filteredData = applyFiltersToData(scoreData.data, filters)
         const filteredScoreByName: Record<string, FilteredRegion> = {}
@@ -185,6 +205,7 @@ export async function loadStatePolygons(
         // APPLY THEME OVERRIDE
         applyThemeColors(map, filters.opportunityMode)
     } catch (error) {
+        if (request.controller.signal.aborted) return
         console.error('Failed to load state polygons:', error)
         if (onError)
             onError(error instanceof Error ? error : new Error(String(error)))
@@ -197,11 +218,10 @@ export async function loadCountyPolygons(
     setupInteractions: (type: string) => void,
     onError?: (error: Error) => void
 ) {
-    const request = {}
-    regionLoads.set(map, request)
+    const request = beginLoad(regionLoads, map)
     try {
         const topoResponse = await fetch(
-            'https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json'
+            'https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json', { signal: request.controller.signal }
         )
         const topology = await topoResponse.json() as Topology<{ counties: GeometryCollection<{ name: string }> }>
         const countiesGeo = topojson.feature(
@@ -225,15 +245,13 @@ export async function loadCountyPolygons(
             west: bounds.getWest() - buffer
         }
 
-        const dataResponse = await fetch(
+        const scoreData = await fetchMapData(
             `/api/charging-data?zoom=${zoom}&` +
                 `north=${expandedBounds.north}&` +
                 `south=${expandedBounds.south}&` +
                 `east=${expandedBounds.east}&` +
-                `west=${expandedBounds.west}`
+                `west=${expandedBounds.west}`, request.controller.signal
         )
-
-        const scoreData: { data: MapRegion[] } = await dataResponse.json()
         const filteredData = applyFiltersToData(scoreData.data, filters)
 
         const scoreByCounty: Record<string, FilteredRegion> = {}
@@ -292,6 +310,7 @@ export async function loadCountyPolygons(
         // APPLY THEME OVERRIDE
         applyThemeColors(map, filters.opportunityMode)
     } catch (error) {
+        if (request.controller.signal.aborted) return
         console.error('Failed to load county polygons:', error)
         if (onError)
             onError(error instanceof Error ? error : new Error(String(error)))
@@ -299,8 +318,7 @@ export async function loadCountyPolygons(
 }
 
 export async function loadChargerPoints(map: mapboxgl.Map, filters: ScoreFilters) {
-    const request = {}
-    pointLoads.set(map, request)
+    const request = beginLoad(pointLoads, map)
     const bounds = map.getBounds()
 
     if (!bounds) {
@@ -324,7 +342,7 @@ export async function loadChargerPoints(map: mapboxgl.Map, filters: ScoreFilters
             return
         }
 
-        const signal = AbortSignal.timeout(15000)
+        const signal = AbortSignal.any([request.controller.signal, AbortSignal.timeout(15000)])
         const chargers = await readAllPages<ChargerPoint>((from, to) => {
             let query = supabase.from('charging_stations').select('*')
                 .or(speedConditions.join(',')).eq('restricted_access', false)
@@ -633,6 +651,7 @@ export async function loadChargerPoints(map: mapboxgl.Map, filters: ScoreFilters
             })
         }
     } catch (error) {
+        if (request.controller.signal.aborted) return
         console.error('Error loading charger points:', error)
     }
 }
@@ -643,8 +662,7 @@ export async function loadZipPolygons(
     setupInteractions: (type: string) => void,
     onError?: (error: Error) => void
 ) {
-    const request = {}
-    regionLoads.set(map, request)
+    const request = beginLoad(regionLoads, map)
     try {
         console.log('Loading zip-level data with geometries from database...')
 
@@ -662,8 +680,7 @@ export async function loadZipPolygons(
             `east=${bounds.getEast()}&` +
             `west=${bounds.getWest()}`
 
-        const dataResponse = await fetch(apiUrl)
-        const scoreData: { data: MapRegion[] } = await dataResponse.json()
+        const scoreData = await fetchMapData(apiUrl, request.controller.signal)
 
         if (!scoreData || !scoreData.data) {
             await loadCountyPolygons(map, filters, setupInteractions)
@@ -719,9 +736,9 @@ export async function loadZipPolygons(
         // APPLY THEME OVERRIDE
         applyThemeColors(map, filters.opportunityMode)
     } catch (error) {
+        if (request.controller.signal.aborted) return
         console.error('❌ Failed to load zip polygons:', error)
         if (onError)
             onError(error instanceof Error ? error : new Error(String(error)))
-        await loadCountyPolygons(map, filters, setupInteractions, onError)
     }
 }

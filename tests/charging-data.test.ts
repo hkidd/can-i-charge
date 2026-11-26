@@ -72,3 +72,17 @@ it('rejects a geometry result without its matching regional summary', async () =
     const response = await GET(new NextRequest('https://fixture.invalid/api/charging-data?zoom=10'))
     expect(response.status).toBe(503)
 })
+
+it('allows repeated public reads to use a short cache instead of re-querying on every filter change', async () => {
+    const response = await GET(new NextRequest('https://fixture.invalid/api/charging-data?zoom=4'))
+    expect(response.headers.get('cache-control')).toContain('s-maxage=60')
+    expect(response.headers.get('cache-control')).toContain('stale-if-error=86400')
+})
+
+it('does not report a cancelled browser request as a server failure', async () => {
+    fixtures.fail = true
+    const controller = new AbortController()
+    controller.abort()
+    const response = await GET(new NextRequest('https://fixture.invalid/api/charging-data?zoom=4', { signal: controller.signal }))
+    expect(response.status).toBe(499)
+})

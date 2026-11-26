@@ -48,8 +48,11 @@ export class RefreshStore {
         if (failure) console.error('Could not record refresh failure:', failure.message)
     }
     async write(id: string, table: SnapshotTable, rows: object[]) {
-        for (let offset = 0; offset < rows.length; offset += 500) {
-            const batch = rows.slice(offset, offset + 500)
+        // Keep JSON expansion and writes small enough to leave room for interactive reads.
+        const batchSize = table === 'charging_stations' ? 500 : 250
+        for (let offset = 0; offset < rows.length; offset += batchSize) {
+            if (offset) await new Promise(resolve => setTimeout(resolve, 50))
+            const batch = rows.slice(offset, offset + batchSize)
             const inserted = await this.rpc('write_station_refresh_batch', { p_run_id: id, p_table: table, p_rows: batch })
             if (inserted !== batch.length) throw new RefreshError(`Incomplete batch write for ${table}`)
         }
