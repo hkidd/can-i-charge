@@ -1,36 +1,19 @@
 'use client'
 
 import { useState } from 'react'
+import type { EVScoreResponse } from '@/lib/api-validation'
 import { getScoreLabel } from '@/lib/map-utils'
 
 interface ScoreCardProps {
-    data: {
-        address: string
-        score: number
-        region: { name: string; type: string; population: number }
-        chargers: {
-            within_1_mile: number
-            within_5_miles: number
-            within_10_miles: number
-            dcfast_count: number
-            level2_count: number
-            level1_count: number
-            total: number
-            nearest: {
-                name: string
-                distance: number
-                type: string
-                address: string
-            } | null
-        }
-    }
+    data: Pick<EVScoreResponse, 'address' | 'score' | 'region' | 'chargers'> & Partial<Pick<EVScoreResponse, 'data_quality' | 'evidence'>>
     onClose: () => void
 }
 
 export default function ScoreCard({ data, onClose }: ScoreCardProps) {
     const [showDCFast, setShowDCFast] = useState(false)
 
-    const getNeonColorVar = (s: number) => {
+    const getNeonColorVar = (s: number | null) => {
+        if (s === null) return '#64748b'
         if (s >= 80) return 'var(--neon-high)'
         if (s >= 60) return 'var(--neon-mid)'
         return 'var(--neon-low)'
@@ -42,19 +25,19 @@ export default function ScoreCard({ data, onClose }: ScoreCardProps) {
     // SVG Math
     const radius = 65
     const circumference = 2 * Math.PI * radius
-    const strokeDashoffset = circumference - (data.score / 100) * circumference
+    const strokeDashoffset = circumference - ((data.score ?? 0) / 100) * circumference
 
     const handleShare = async () => {
         const shareData = {
             title: 'Can I Charge?',
-            text: `${data.address} has an EV Readiness Score of ${data.score}. Check it out:`,
+            text: `${data.address} has an EV Readiness Score of ${data.score ?? 'Unrated'}. Check it out:`,
             url: window.location.href
         }
 
         if (navigator.share) {
             try {
                 await navigator.share(shareData)
-            } catch (err) {
+            } catch {
                 console.log('Share cancelled')
             }
         } else {
@@ -81,26 +64,9 @@ export default function ScoreCard({ data, onClose }: ScoreCardProps) {
                             {data.region.name} {/* // */} SERVICE:{' '}
                             <span
                                 className='font-semibold'
-                                style={{
-                                    color:
-                                        data.score >= 80
-                                            ? '#10b981' // Neon Emerald
-                                            : data.score >= 60
-                                            ? '#06b6d4' // Cyan
-                                            : data.score >= 40
-                                            ? '#2563eb' // Royal Blue
-                                            : '#4c1d95' // Lighter Violet
-                                }}
+                                style={{ color: scoreColor }}
                             >
-                                {data.score >= 80
-                                    ? 'EXCELLENT'
-                                    : data.score >= 60
-                                    ? 'GOOD'
-                                    : data.score >= 40
-                                    ? 'FAIR'
-                                    : data.region.population < 10000
-                                    ? 'RURAL'
-                                    : 'POOR'}
+                                {scoreLabel.toUpperCase()}
                             </span>
                         </p>
                     </div>
@@ -125,6 +91,12 @@ export default function ScoreCard({ data, onClose }: ScoreCardProps) {
                 </div>
 
                 <div className='p-6 space-y-8'>
+                    {data.evidence && <p role='note' className='text-xs text-white/70 leading-relaxed'>{data.evidence.summary} <a href='/methodology' className='underline'>How this score works</a></p>}
+                    {data.data_quality?.message && (
+                        <p role='note' className='text-xs text-white/70 leading-relaxed'>
+                            {data.data_quality.message}
+                        </p>
+                    )}
                     {/* HERO: Score Reactor */}
                     <div className='flex flex-col items-center justify-center py-2'>
                         <div className='relative w-48 h-48 flex items-center justify-center'>
@@ -168,7 +140,7 @@ export default function ScoreCard({ data, onClose }: ScoreCardProps) {
                                         textShadow: `0 0 30px ${scoreColor}`
                                     }}
                                 >
-                                    {data.score}
+                                    {data.score ?? '—'}
                                 </span>
                                 <span className='text-[10px] font-mono text-white/40 uppercase tracking-widest'>
                                     EV Score
@@ -181,9 +153,11 @@ export default function ScoreCard({ data, onClose }: ScoreCardProps) {
                                 {scoreLabel}
                             </div>
                             <div className='text-xs text-white/50 font-mono uppercase tracking-wider'>
-                                {data.score >= 60
+                                {data.score === null
+                                    ? 'Insufficient verified data'
+                                    : (data.score ?? 0) >= 60
                                     ? 'Optimal Coverage'
-                                    : data.score >= 40
+                                    : (data.score ?? 0) >= 40
                                     ? 'Limited Coverage'
                                     : 'Critical Infrastructure Gap'}
                             </div>
@@ -234,15 +208,7 @@ export default function ScoreCard({ data, onClose }: ScoreCardProps) {
                         <div className='grid grid-cols-3 border border-white/10 rounded-xl bg-white/[0.02]'>
                             <div className='p-4 text-center border-r border-white/10'>
                                 <div className='text-2xl font-bold text-white font-mono'>
-                                    {showDCFast
-                                        ? Math.round(
-                                              (data.chargers.total > 0
-                                                  ? data.chargers.dcfast_count /
-                                                    data.chargers.total
-                                                  : 0) *
-                                                  data.chargers.within_1_mile
-                                          )
-                                        : data.chargers.within_1_mile}
+                                    {showDCFast ? data.chargers.dcfast_within_1_mile : data.chargers.within_1_mile}
                                 </div>
                                 <div
                                     className={`text-[8px] uppercase font-mono mt-0.5 ${
@@ -259,15 +225,7 @@ export default function ScoreCard({ data, onClose }: ScoreCardProps) {
                             </div>
                             <div className='p-4 text-center border-r border-white/10'>
                                 <div className='text-2xl font-bold text-white font-mono'>
-                                    {showDCFast
-                                        ? Math.round(
-                                              (data.chargers.total > 0
-                                                  ? data.chargers.dcfast_count /
-                                                    data.chargers.total
-                                                  : 0) *
-                                                  data.chargers.within_5_miles
-                                          )
-                                        : data.chargers.within_5_miles}
+                                    {showDCFast ? data.chargers.dcfast_within_5_miles : data.chargers.within_5_miles}
                                 </div>
                                 <div
                                     className={`text-[8px] uppercase font-mono mt-0.5 ${
@@ -284,15 +242,7 @@ export default function ScoreCard({ data, onClose }: ScoreCardProps) {
                             </div>
                             <div className='p-4 text-center'>
                                 <div className='text-2xl font-bold text-white font-mono'>
-                                    {showDCFast
-                                        ? Math.round(
-                                              (data.chargers.total > 0
-                                                  ? data.chargers.dcfast_count /
-                                                    data.chargers.total
-                                                  : 0) *
-                                                  data.chargers.within_10_miles
-                                          )
-                                        : data.chargers.within_10_miles}
+                                    {showDCFast ? data.chargers.dcfast_within_10_miles : data.chargers.within_10_miles}
                                 </div>
                                 <div
                                     className={`text-[8px] uppercase font-mono mt-0.5 ${

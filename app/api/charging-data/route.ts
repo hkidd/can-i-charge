@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { validateResponse, ChargingDataResponseSchema } from '@/lib/api-validation'
-import { ApiResponseError, logError } from '@/lib/error-handling'
+import { logError } from '@/lib/error-handling'
+import { readAllPages } from '@/lib/db-pagination'
 
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
@@ -30,74 +31,46 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        let data, error, count
-
+        const database = getSupabaseAdmin()
+        const signal = AbortSignal.timeout(15000)
+        let data: Record<string, unknown>[]
         if (useFunction) {
-            // Use PostGIS function for ZIP geometries
-            const result = await supabaseAdmin.rpc(
-                'get_zip_data_with_geometry',
-                {
-                    p_north: north,
-                    p_south: south,
-                    p_east: east,
-                    p_west: west
-                }
-            )
+            const geometries = await readAllPages<Record<string, unknown>>((from, to) => database
+                .rpc('get_zip_data_with_geometry', {
+                    p_north: north, p_south: south, p_east: east, p_west: west
+                }).order('zip_code').range(from, to).abortSignal(signal))
 
-            data = result.data
-            error = result.error
-            count = data?.length || 0
+            // Older geometry RPCs return a fixed column list. Read current scoring fields
+            // from the table instead of silently losing new capacity and quality columns.
+            const zipCodes = [...new Set(geometries.map(row => String(row.zip_code)))]
+            const summaries = new Map<string, Record<string, unknown>>()
+            for (let offset = 0; offset < zipCodes.length; offset += 200) {
+                const batch = zipCodes.slice(offset, offset + 200)
+                const rows = await readAllPages<Record<string, unknown>>((from, to) => database
+                    .from('zip_level_data').select('*').in('zip_code', batch)
+                    .order('zip_code').range(from, to).abortSignal(signal))
+                for (const row of rows) summaries.set(String(row.zip_code), row)
+            }
+            data = geometries.map(row => {
+                const summary = summaries.get(String(row.zip_code))
+                if (!summary) throw new Error('Missing ZIP scoring data')
+                return { ...row, ...summary, geometry: row.geometry }
+            })
         } else {
-            // Standard query for other levels
-            const result = await supabaseAdmin
-                .from(tableName)
-                .select('*', { count: 'exact' })
-                .gte('center_lat', south)
-                .lte('center_lat', north)
-                .gte('center_lng', west)
-                .lte('center_lng', east)
-                .order('ev_infrastructure_score', { ascending: false })
-
-            data = result.data
-            error = result.error
-            count = result.count
+            const orderColumn = granularity === 'state' ? 'state_name' : 'id'
+            data = await readAllPages<Record<string, unknown>>((from, to) => database
+                .from(tableName).select('*')
+                .gte('center_lat', south).lte('center_lat', north)
+                .gte('center_lng', west).lte('center_lng', east)
+                .order(orderColumn).range(from, to).abortSignal(signal))
         }
 
-        if (error) {
-            logError(error, `api.charging-data.${granularity}`, { zoom, bounds: { north, south, east, west } })
-            return NextResponse.json({ error: error.message }, { status: 500 })
-        }
-
-        const response = {
-            zoom,
-            granularity,
-            bounds: { north, south, east, west },
-            count: count || 0,
-            data: data || []
-        }
-        
-        // Safe validation - log errors but don't fail the request
-        try {
-            validateResponse(ChargingDataResponseSchema, response, 'charging-data')
-        } catch (validationError) {
-            // Log validation error but continue with response
-            logError(validationError, 'api.charging-data.validation', { granularity, dataCount: data?.length })
-        }
-        
+        const response = validateResponse(ChargingDataResponseSchema, {
+            zoom, granularity, bounds: { north, south, east, west }, count: data.length, data
+        }, 'charging-data')
         return NextResponse.json(response)
     } catch (error) {
         logError(error, 'api.charging-data', { zoom, north, south, east, west })
-        
-        if (error instanceof ApiResponseError) {
-            return NextResponse.json(
-                { error: error.message },
-                { status: error.statusCode || 500 }
-            )
-        }
-        
-        return NextResponse.json(
-            { error: 'Failed to fetch charging data' },
-            { status: 500 }
-        )
+        return NextResponse.json({ error: 'Failed to fetch charging data' }, { status: 503 })
     }
 }

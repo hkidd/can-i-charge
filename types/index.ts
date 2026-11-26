@@ -9,8 +9,12 @@ export interface HoveredData {
   county_name?: string
   zip_code?: string
   state?: string
-  score?: number
+  score?: number | null
   charger_count?: number
-  filtered_charger_count?: number
+  filtered_charger_count?: number | null
   population?: number
+  model_message?: string | null
+  traffic_message?: string | null
+  capacity_message?: string | null
+  unknown_port_station_count?: number | null
 }

@@ -1,11 +1,24 @@
 (function() {
     'use strict';
 
-    const API_BASE = 'https://canicharge.com';
+    const scriptUrl = document.currentScript && document.currentScript.src;
+    const API_BASE = scriptUrl ? new URL(scriptUrl).origin : 'https://canicharge.com';
     const WIDGET_VERSION = '1.0.0';
+
+    function escapeHtml(value) {
+        const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+        return String(value == null ? '' : value).replace(/[&<>"']/g, character => entities[character]);
+    }
+
+    function colorValue(value, fallback) {
+        // Widget color options use hex colors, never arbitrary HTML or CSS.
+        return /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value || '')
+            ? value : fallback;
+    }
 
     // Grade color mapping
     function getGradeColor(grade) {
+        if (grade === 'Unrated') return '#64748b';
         if (grade.startsWith('A')) return '#22c55e';
         if (grade.startsWith('B')) return '#84cc16';
         if (grade.startsWith('C')) return '#eab308';
@@ -24,9 +37,9 @@
             lng: element.dataset.lng ? parseFloat(element.dataset.lng) : null,
             apiKey: element.dataset.apiKey || '',
             theme: element.dataset.theme || 'light',
-            primaryColor: element.dataset.primaryColor || '#2563eb',
-            backgroundColor: element.dataset.backgroundColor || '',
-            textColor: element.dataset.textColor || '',
+            primaryColor: colorValue(element.dataset.primaryColor, '#2563eb'),
+            backgroundColor: colorValue(element.dataset.backgroundColor, ''),
+            textColor: colorValue(element.dataset.textColor, ''),
             size: element.dataset.size || 'standard',
             showBranding: element.dataset.showBranding !== 'false',
             showBreakdown: element.dataset.showBreakdown === 'true',
@@ -94,9 +107,15 @@
                 font-family: system-ui, -apple-system, sans-serif;
                 text-align: center;
             ">
-                <div style="color: #ef4444;">${message}</div>
+                <div style="color: #ef4444;">${escapeHtml(message)}</div>
             </div>
         `;
+    }
+
+    function renderCapacityNotice(data) {
+        return data.data_quality?.message
+            ? `<div role="note" style="flex-basis:100%;font-size:12px;line-height:1.5;opacity:0.75;margin:12px 0;">${escapeHtml(data.data_quality.message)}</div>`
+            : '';
     }
 
     // Render compact widget
@@ -109,6 +128,8 @@
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
+                flex-wrap: wrap;
+                max-width: 340px;
                 padding: 8px 12px;
                 background: ${theme.background};
                 color: ${theme.color};
@@ -128,8 +149,10 @@
                     color: #fff;
                     font-weight: 700;
                     font-size: 12px;
-                ">${data.grade}</span>
-                <span style="font-weight: 600;">EV Ready: ${data.score}</span>
+                ">${escapeHtml(data.grade)}</span>
+                <span style="font-weight: 600;">EV Ready: ${escapeHtml(data.score ?? 'Unrated')}</span>
+                ${data.evidence ? `<div style="flex-basis:100%;font-size:11px;line-height:1.5;">Modeled demand coverage · ${escapeHtml(data.evidence.registration_year)} fleet${data.evidence.fleet_basis === 'population_estimate' ? ' · local estimate' : ''}</div>` : ''}
+                ${renderCapacityNotice(data)}
             </div>
         `;
     }
@@ -144,12 +167,10 @@
             : 'N/A';
 
         let breakdownHtml = '';
-        if (config.showBreakdown) {
+        if (config.showBreakdown && data.breakdown) {
             const items = [
-                { label: 'Nearby Chargers', value: data.breakdown.nearby_chargers, max: 40 },
-                { label: 'Fast Charging', value: data.breakdown.fast_charging, max: 25 },
-                { label: 'Network Diversity', value: data.breakdown.network_diversity, max: 20 },
-                { label: 'Charging Density', value: data.breakdown.charging_density, max: 15 },
+                { label: 'Level 2 Target', value: data.breakdown.nearby_chargers, max: 85 },
+                { label: 'Fast Charging Target', value: data.breakdown.fast_charging, max: 15 },
             ];
 
             breakdownHtml = `
@@ -161,7 +182,7 @@
                         <div style="margin-bottom: 8px;">
                             <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
                                 <span>${item.label}</span>
-                                <span>${item.value}/${item.max}</span>
+                                <span>${escapeHtml(item.value)}/${item.max}</span>
                             </div>
                             <div style="height: 4px; background: ${theme.muted}; border-radius: 2px;">
                                 <div style="
@@ -217,9 +238,9 @@
                         justify-content: center;
                         font-size: 28px;
                         font-weight: 700;
-                    ">${data.grade}</div>
+                    ">${escapeHtml(data.grade)}</div>
                     <div>
-                        <div style="font-size: 32px; font-weight: 700; line-height: 1;">${data.score}</div>
+                        <div style="font-size: 32px; font-weight: 700; line-height: 1;">${escapeHtml(data.score ?? 'Unrated')}</div>
                         <div style="font-size: 13px; opacity: 0.7; margin-top: 4px;">out of 100</div>
                     </div>
                 </div>
@@ -231,27 +252,29 @@
                     font-size: 13px;
                     margin-bottom: 16px;
                 ">
-                    Better than <strong>${data.percentile}%</strong> of US locations
+                    ${escapeHtml(data.evidence?.summary || 'Estimated public charging provision.')}<br><a href="${API_BASE}/methodology">How this score works</a>
                 </div>
 
+                ${renderCapacityNotice(data)}
                 <div style="font-size: 13px; margin-bottom: 16px;">
                     <div style="margin-bottom: 6px;">
-                        <span style="font-weight: 600;">${data.chargers.within_5_miles} chargers</span>
+                        <span style="font-weight: 600;">${escapeHtml(data.chargers.within_5_miles)} chargers</span>
                         <span style="opacity: 0.7;"> within 5 miles</span>
-                        ${data.chargers.dcfast_count > 0 ? `<span style="opacity: 0.7;"> (${data.chargers.dcfast_count} fast)</span>` : ''}
+                        ${data.chargers.dcfast_within_5_miles > 0 ? `<span style="opacity: 0.7;"> (${escapeHtml(data.chargers.dcfast_within_5_miles)} fast)</span>` : ''}
                     </div>
                     ${data.chargers.nearest ? `
                         <div style="opacity: 0.7;">
                             Nearest: <span style="font-weight: 500; opacity: 1;">${nearestDistance}</span>
-                            ${data.chargers.nearest.name ? `<span> — ${data.chargers.nearest.name}</span>` : ''}
+                            ${data.chargers.nearest.name ? `<span> — ${escapeHtml(data.chargers.nearest.name)}</span>` : ''}
                         </div>
                     ` : ''}
                 </div>
 
+                ${data.evidence ? `<p style="font-size:11px;line-height:1.5;opacity:.7;">${escapeHtml(data.evidence.limitations)}</p>` : ''}
                 ${breakdownHtml}
 
                 <div style="font-size: 12px; opacity: 0.6; ${config.showBranding ? 'margin-bottom: 12px;' : ''}">
-                    ${data.location}
+                    ${escapeHtml(data.location)}
                 </div>
 
                 ${brandingHtml}
@@ -273,7 +296,9 @@
             ? `/api/ev-score?${params.toString()}`
             : `${API_BASE}/api/ev-score?${params.toString()}`;
 
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            headers: config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}
+        });
         if (!response.ok) throw new Error('Failed to fetch score');
         return response.json();
     }
@@ -298,7 +323,7 @@
             } else {
                 renderStandard(element, config, data);
             }
-        } catch (err) {
+        } catch {
             renderError(element, config, 'Failed to load score');
         }
     }

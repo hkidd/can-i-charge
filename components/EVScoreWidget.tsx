@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import type { ReadinessEvidence } from '@/lib/charging-demand'
+import type { ScoreDataQuality } from '@/lib/regional-score'
 
 export interface ScoreData {
-    score: number
+    score: number | null
     grade: string
-    percentile: number
+    percentile: number | null
     message: string
     location: string
     breakdown: {
@@ -13,16 +15,19 @@ export interface ScoreData {
         fast_charging: number
         network_diversity: number
         charging_density: number
-    }
+    } | null
     chargers: {
         within_5_miles: number
         dcfast_count: number
+        dcfast_within_5_miles: number
         nearest: {
-            name: string
+            name: string | null
             distance: number
         } | null
     }
     nearest_charger_miles: number | null
+    evidence?: ReadinessEvidence | null
+    data_quality?: ScoreDataQuality
 }
 
 export interface WidgetConfig {
@@ -62,20 +67,19 @@ const DEFAULT_CONFIG: Partial<WidgetConfig> = {
 
 export default function EVScoreWidget(props: WidgetConfig) {
     const config = { ...DEFAULT_CONFIG, ...props }
-    const [data, setData] = useState<ScoreData | null>(null)
-    const [loading, setLoading] = useState(true)
+    const [fetchedData, setData] = useState<ScoreData | null>(null)
+    const [isLoading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
     // Use props directly for dependencies to ensure proper reactivity
-    const { address, zip, county, state, lat, lng, demoData } = props
+    const { address, zip, county, state, lat, lng, demoData, apiKey } = props
+
+    const data = demoData ?? fetchedData
+    const loading = !demoData && isLoading
 
     useEffect(() => {
-        // If demoData is provided, use it directly without fetching
-        if (demoData) {
-            setData(demoData)
-            setLoading(false)
-            return
-        }
+        if (demoData) return
+        const controller = new AbortController()
 
         async function fetchScore() {
             setLoading(true)
@@ -95,23 +99,28 @@ export default function EVScoreWidget(props: WidgetConfig) {
                     return
                 }
 
-                const res = await fetch(`/api/ev-score?${params.toString()}`)
+                const res = await fetch(`/api/ev-score?${params.toString()}`, {
+                    signal: controller.signal,
+                    headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {}
+                })
                 if (!res.ok) {
                     const errData = await res.json().catch(() => ({}))
                     throw new Error(errData.error || 'Failed to fetch score')
                 }
 
                 const result = await res.json()
-                setData(result)
+                if (!controller.signal.aborted) setData(result)
             } catch (err) {
+                if (controller.signal.aborted) return
                 setError(err instanceof Error ? err.message : 'Failed to load')
             } finally {
-                setLoading(false)
+                if (!controller.signal.aborted) setLoading(false)
             }
         }
 
         fetchScore()
-    }, [address, zip, county, state, lat, lng, demoData])
+        return () => controller.abort()
+    }, [address, zip, county, state, lat, lng, demoData, apiKey])
 
     // Theme styles
     const getThemeStyles = () => {
@@ -158,6 +167,7 @@ export default function EVScoreWidget(props: WidgetConfig) {
     const theme = getThemeStyles()
 
     const getGradeColor = (grade: string) => {
+        if (grade === 'Unrated') return '#64748b'
         if (grade.startsWith('A')) return '#22c55e'
         if (grade.startsWith('B')) return '#84cc16'
         if (grade.startsWith('C')) return '#eab308'
@@ -180,6 +190,8 @@ export default function EVScoreWidget(props: WidgetConfig) {
                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                     fontFamily: 'system-ui, -apple-system, sans-serif',
                     fontSize: '14px',
+                    flexWrap: 'wrap',
+                    maxWidth: '340px',
                 }}
             >
                 {loading ? (
@@ -202,9 +214,15 @@ export default function EVScoreWidget(props: WidgetConfig) {
                                 fontSize: '12px',
                             }}
                         >
-                            {data.grade}
+                            {data.score === null ? '—' : data.grade}
                         </span>
-                        <span style={{ fontWeight: 600 }}>EV Ready: {data.score}</span>
+                        <span style={{ fontWeight: 600 }}>EV Ready: {data.score ?? 'Unrated'}</span>
+                        {data.evidence && <p role='note' style={{ flexBasis: '100%', fontSize: '11px', lineHeight: 1.4 }}>Modeled demand coverage · {data.evidence.registration_year} fleet{data.evidence.fleet_basis === 'population_estimate' ? ' · local estimate' : ''}</p>}
+                    {data.data_quality?.message && (
+                            <span role='note' style={{ flexBasis: '100%', fontSize: '11px', opacity: 0.75, lineHeight: 1.5 }}>
+                                {data.data_quality.message}
+                            </span>
+                        )}
                     </>
                 ) : null}
             </div>
@@ -264,14 +282,14 @@ export default function EVScoreWidget(props: WidgetConfig) {
                                 boxShadow: `0 4px 20px ${getGradeColor(data.grade)}40`,
                             }}
                         >
-                            {data.grade}
+                            {data.score === null ? '—' : data.grade}
                         </div>
                         <div>
                             <div style={{ fontSize: '40px', fontWeight: 700, lineHeight: 1, background: `linear-gradient(135deg, ${theme.color}, ${theme.color}aa)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                                {data.score}
+                                {data.score ?? '—'}
                             </div>
                             <div style={{ fontSize: '13px', opacity: 0.5, marginTop: '4px' }}>
-                                out of 100
+                                {data.score === null ? 'Unrated' : 'out of 100'}
                             </div>
                         </div>
                     </div>
@@ -287,16 +305,23 @@ export default function EVScoreWidget(props: WidgetConfig) {
                             border: `1px solid ${theme.border}`,
                         }}
                     >
-                        Better than <span style={{ fontWeight: 600, color: theme.primary }}>{data.percentile}%</span> of US locations
+                        {data.evidence?.summary ?? 'Estimated public charging provision.'}
+                        <a href='/methodology' style={{ display: 'block', marginTop: '8px', color: theme.primary }}>How this score works</a>
                     </div>
 
+                    {data.evidence && <p style={{ fontSize: '11px', opacity: 0.65, lineHeight: 1.5, marginBottom: '16px' }}>{data.evidence.limitations}</p>}
                     {/* Quick stats */}
+                    {data.data_quality?.message && (
+                        <p role='note' style={{ fontSize: '12px', opacity: 0.75, lineHeight: 1.5, marginBottom: '16px' }}>
+                            {data.data_quality.message}
+                        </p>
+                    )}
                     <div style={{ fontSize: '13px', marginBottom: '20px', lineHeight: 1.6 }}>
                         <div style={{ marginBottom: '4px' }}>
                             <span style={{ fontWeight: 600 }}>{data.chargers.within_5_miles} chargers</span>
                             <span style={{ opacity: 0.6 }}> within 5 miles</span>
-                            {data.chargers.dcfast_count > 0 && (
-                                <span style={{ opacity: 0.6 }}> ({data.chargers.dcfast_count} fast)</span>
+                            {data.chargers.dcfast_within_5_miles > 0 && (
+                                <span style={{ opacity: 0.6 }}> ({data.chargers.dcfast_within_5_miles} fast)</span>
                             )}
                         </div>
                         {data.chargers.nearest && (
@@ -310,16 +335,14 @@ export default function EVScoreWidget(props: WidgetConfig) {
                     </div>
 
                     {/* Breakdown */}
-                    {config.showBreakdown && (
+                    {config.showBreakdown && data.breakdown && (
                         <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: '20px', marginBottom: '20px' }}>
                             <div style={{ fontSize: '11px', fontWeight: 600, marginBottom: '12px', opacity: 0.5, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                                 Score Breakdown
                             </div>
                             {[
-                                { label: 'Nearby Chargers', value: data.breakdown.nearby_chargers, max: 40 },
-                                { label: 'Fast Charging', value: data.breakdown.fast_charging, max: 25 },
-                                { label: 'Network Diversity', value: data.breakdown.network_diversity, max: 20 },
-                                { label: 'Charging Density', value: data.breakdown.charging_density, max: 15 },
+                                { label: 'Level 2 Target', value: data.breakdown.nearby_chargers, max: 85 },
+                                { label: 'Fast Charging Target', value: data.breakdown.fast_charging, max: 15 },
                             ].map((item) => (
                                 <div key={item.label} style={{ marginBottom: '12px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
