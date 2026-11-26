@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { motion, useSpring, useMotionValue } from 'framer-motion'
 
 interface GradientOrb {
@@ -18,7 +18,6 @@ const ORBS: GradientOrb[] = [
 ]
 
 export default function MouseFollowGradient() {
-  const [mounted, setMounted] = useState(false)
 
   // Mouse position motion values
   const mouseX = useMotionValue(0)
@@ -30,7 +29,7 @@ export default function MouseFollowGradient() {
   const springY = useSpring(mouseY, springConfig)
 
   useEffect(() => {
-    setMounted(true)
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
     const handleMouseMove = (e: MouseEvent) => {
       // Normalize mouse position to center of screen (0,0 = center)
@@ -44,8 +43,6 @@ export default function MouseFollowGradient() {
     window.addEventListener('mousemove', handleMouseMove)
     return () => window.removeEventListener('mousemove', handleMouseMove)
   }, [mouseX, mouseY])
-
-  if (!mounted) return null
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">

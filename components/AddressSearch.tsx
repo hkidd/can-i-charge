@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, X, MapPin } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ScoreCard from './ScoreCard'
+import type { EVScoreResponse } from '@/lib/api-validation'
 import { Button } from '@/components/landing'
 
 const EXAMPLE_LOCATIONS = [
@@ -26,7 +27,7 @@ interface AddressSuggestion {
 
 interface AddressSearchProps {
     onLocationSelect?: (lng: number, lat: number, address: string) => void
-    onScoreResult?: (data: any) => void
+    onScoreResult?: (data: EVScoreResponse) => void
     showButton?: boolean
     buttonText?: string
     showAnimatedPlaceholder?: boolean
@@ -48,7 +49,11 @@ export default function AddressSearch({
     const [searchQuery, setSearchQuery] = useState('')
     const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([])
     const [loading, setLoading] = useState(false)
-    const [scoreData, setScoreData] = useState<any>(null)
+    const [error, setError] = useState('')
+    const suggestionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const suggestionRequest = useRef<AbortController | null>(null)
+    const scoreRequest = useRef<AbortController | null>(null)
+    const [scoreData, setScoreData] = useState<EVScoreResponse | null>(null)
     const [showScoreCard, setShowScoreCard] = useState(false)
     const [isTyping, setIsTyping] = useState(false)
     const [placeholderIndex, setPlaceholderIndex] = useState(0)
@@ -64,38 +69,53 @@ export default function AddressSearch({
         return () => clearInterval(interval)
     }, [showAnimatedPlaceholder, searchQuery, isTyping])
 
-    const fetchSuggestions = async (query: string) => {
-        if (query.length < 3) {
-            setSuggestions([])
-            return
-        }
+    const cancelSuggestions = useCallback(() => {
+        if (suggestionTimer.current) clearTimeout(suggestionTimer.current)
+        suggestionRequest.current?.abort()
+    }, [])
 
-        setLoading(true)
+    useEffect(() => () => {
+        cancelSuggestions()
+        scoreRequest.current?.abort()
+    }, [cancelSuggestions])
 
-        try {
-            const response = await fetch(
-                `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-                    query
-                )}.json?` +
-                    `access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&` +
-                    `country=US&` +
-                    `types=address,place,postcode&` +
-                    `limit=5`
-            )
+    const scheduleSuggestions = (query: string) => {
+        cancelSuggestions()
+        scoreRequest.current?.abort()
+        setSuggestions([])
+        setLoading(false)
+        setError('')
+        if (query.trim().length < 3) return
 
-            const data = await response.json()
-            setSuggestions(data.features || [])
-        } catch (error) {
-            console.error('Geocoding error:', error)
-            setSuggestions([])
-        } finally {
-            setLoading(false)
-        }
+        const controller = new AbortController()
+        suggestionRequest.current = controller
+        suggestionTimer.current = setTimeout(async () => {
+            setLoading(true)
+            try {
+                const response = await fetch(
+                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?` +
+                    `access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&country=US&types=address,place,postcode&limit=5`,
+                    { signal: controller.signal }
+                )
+                if (!response.ok) throw new Error('Address lookup failed')
+                const data = await response.json()
+                if (!controller.signal.aborted) setSuggestions(data.features || [])
+            } catch {
+                if (!controller.signal.aborted) setError('Address lookup is unavailable. Please try again.')
+            } finally {
+                if (!controller.signal.aborted) setLoading(false)
+            }
+        }, 250)
     }
 
     const handleSelectLocation = async (feature: AddressSuggestion) => {
         const [lng, lat] = feature.center
         const address = feature.place_name
+        cancelSuggestions()
+        scoreRequest.current?.abort()
+        const controller = new AbortController()
+        scoreRequest.current = controller
+        setError('')
 
         setSuggestions([])
         setSearchQuery(address)
@@ -109,12 +129,13 @@ export default function AddressSearch({
             const response = await fetch(
                 `/api/ev-score?lat=${lat}&lng=${lng}&address=${encodeURIComponent(
                     address
-                )}`
+                )}`, { signal: controller.signal }
             )
 
             if (!response.ok) throw new Error('Failed to fetch score')
 
             const data = await response.json()
+            if (controller.signal.aborted) return
             setScoreData(data)
 
             if (showScoreCardProp) {
@@ -122,10 +143,10 @@ export default function AddressSearch({
             }
 
             onScoreResult?.(data)
-        } catch (error) {
-            console.error('Error fetching EV score:', error)
+        } catch {
+            if (!controller.signal.aborted) setError('Unable to load the score. Please try again.')
         } finally {
-            setLoading(false)
+            if (!controller.signal.aborted) setLoading(false)
         }
     }
 
@@ -139,7 +160,12 @@ export default function AddressSearch({
             return
         }
 
-        // Otherwise, geocode the query directly
+        // Otherwise, geocode the query directly.
+        cancelSuggestions()
+        scoreRequest.current?.abort()
+        const controller = new AbortController()
+        scoreRequest.current = controller
+        setError('')
         setLoading(true)
         try {
             const response = await fetch(
@@ -149,17 +175,17 @@ export default function AddressSearch({
                     `access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}&` +
                     `country=US&` +
                     `types=address,place,postcode&` +
-                    `limit=1`
+                    `limit=1`, { signal: controller.signal }
             )
-
+            if (!response.ok) throw new Error('Address lookup failed')
             const data = await response.json()
-            if (data.features?.[0]) {
-                handleSelectLocation(data.features[0])
-            }
-        } catch (error) {
-            console.error('Geocoding error:', error)
+            if (controller.signal.aborted) return
+            if (data.features?.[0]) await handleSelectLocation(data.features[0])
+            else setError('No matching address found.')
+        } catch {
+            if (!controller.signal.aborted) setError('Address lookup is unavailable. Please try again.')
         } finally {
-            setLoading(false)
+            if (!controller.signal.aborted) setLoading(false)
         }
     }
 
@@ -190,11 +216,13 @@ export default function AddressSearch({
 
                     <input
                         type='text'
+                        aria-label='Search address or ZIP code'
                         value={searchQuery}
                         onChange={(e) => {
                             setSearchQuery(e.target.value)
-                            fetchSuggestions(e.target.value)
+                            scheduleSuggestions(e.target.value)
                         }}
+                        onKeyDown={(event) => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) void handleSubmit(event) }}
                         onFocus={() => setIsTyping(true)}
                         onBlur={() => {
                             setIsTyping(false)
@@ -250,7 +278,12 @@ export default function AddressSearch({
                     {!loading && !isHero && searchQuery && (
                         <button
                             type='button'
+                            aria-label='Clear location'
                             onClick={() => {
+                                cancelSuggestions()
+                                scoreRequest.current?.abort()
+                                setLoading(false)
+                                setError('')
                                 setSearchQuery('')
                                 setSuggestions([])
                             }}
@@ -262,7 +295,7 @@ export default function AddressSearch({
 
                     {/* Suggestions Dropdown */}
                     {suggestions.length > 0 && (
-                        <div className='suggestions-dropdown absolute top-full mt-2 w-full bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden z-50 shadow-xl'>
+                        <div className={`suggestions-dropdown ${isHero ? 'relative sm:absolute sm:top-full' : 'absolute top-full'} mt-2 w-full bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden z-50 shadow-xl`}>
                             {suggestions.map((suggestion, index) => (
                                 <button
                                     key={index}
@@ -301,6 +334,7 @@ export default function AddressSearch({
                     </Button>
                 )}
             </form>
+            {error && <p role='alert' className='mt-2 text-sm text-red-400'>{error}</p>}
 
             {showScoreCardProp && showScoreCard && scoreData && (
                 <ScoreCard

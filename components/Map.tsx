@@ -14,6 +14,7 @@ import {
 import MapFilters from './MapFilters'
 import type { HoveredData } from '@/types'
 import { ToastContainer, useToast } from './Toast'
+import { DEFAULT_SCORE_FILTERS } from '@/lib/regional-score'
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
 
@@ -22,15 +23,7 @@ export default function Map() {
     const map = useRef<mapboxgl.Map | null>(null)
     const [loading, setLoading] = useState(true)
     const [hoveredState, setHoveredState] = useState<HoveredData | null>(null)
-    const [chargerFilters, setChargerFilters] = useState({
-        showDCFast: true,
-        showLevel2: true,
-        showLevel1: false,
-        showTesla: true,
-        showCCS: true,
-        opportunityMode: false,
-        usePortWeighting: true
-    })
+    const [chargerFilters, setChargerFilters] = useState({ ...DEFAULT_SCORE_FILTERS })
     const chargerFiltersRef = useRef(chargerFilters)
     const [showMobileFilters, setShowMobileFilters] = useState(false)
     const { messages, showError, dismissToast } = useToast()
@@ -39,10 +32,14 @@ export default function Map() {
         chargerFiltersRef.current = chargerFilters
     }, [chargerFilters])
 
+    const configuredInteractions = useRef(new Set<string>())
     const setupInteractions = useCallback((layerType: string) => {
         if (!map.current) return
         const layerId =
             layerType === 'polygon' ? 'region-fills' : 'charger-points'
+
+        if (configuredInteractions.current.has(layerId)) return
+        configuredInteractions.current.add(layerId)
 
         map.current.on('mouseenter', layerId, () => {
             if (map.current) map.current.getCanvas().style.cursor = 'pointer'
@@ -65,7 +62,11 @@ export default function Map() {
                     charger_count: feature.properties?.charger_count,
                     filtered_charger_count:
                         feature.properties?.filtered_charger_count,
-                    population: feature.properties?.population
+                    population: feature.properties?.population,
+                    model_message: feature.properties?.model_message,
+                    traffic_message: feature.properties?.traffic_message,
+                    capacity_message: feature.properties?.capacity_message,
+                    unknown_port_station_count: feature.properties?.unknown_port_station_count
                 })
             }
         })
@@ -115,11 +116,12 @@ export default function Map() {
             console.error('Failed to load map data:', error)
             setLoading(false)
         }
-    }, [])
+    }, [setupInteractions])
 
     // Initialize map
     useEffect(() => {
         if (map.current) return
+        const interactions = configuredInteractions.current
 
         try {
             map.current = new mapboxgl.Map({
@@ -158,21 +160,16 @@ export default function Map() {
                 }
             })
 
-            map.current.on('zoomend', async () => {
-                try {
-                    await loadMapData()
-                } catch (error) {
-                    console.error('Failed to update map data:', error)
-                    // Don't show error for zoom events to avoid spam
-                }
-            })
-
-            return () => map.current?.remove()
+            return () => {
+                map.current?.remove()
+                map.current = null
+                interactions.clear()
+            }
         } catch (error) {
             console.error('Failed to initialize map:', error)
             showError('Failed to initialize map. Please check your connection.')
         }
-    }, [loadMapData])
+    }, [loadMapData, showError])
 
     const isInitialMount = useRef(true)
     useEffect(() => {
@@ -182,12 +179,12 @@ export default function Map() {
         }
         if (!map.current || !map.current.isStyleLoaded()) return
         const timer = setTimeout(() => {
-            if (map.current && map.current.getSource('regions')) {
+            if (map.current) {
                 loadMapData()
             }
         }, 100)
         return () => clearTimeout(timer)
-    }, [chargerFilters])
+    }, [chargerFilters, loadMapData])
 
     const handleLocationSelect = (lng: number, lat: number) => {
         if (map.current) {
@@ -195,12 +192,12 @@ export default function Map() {
         }
     }
 
-    const getScoreColor = (score: number) => {
+    const getScoreColor = (score: number | null) => {
+        if (score === null) return '#64748b'
         if (chargerFilters.opportunityMode) {
-            if (score >= 75) return '#facc15' // Gold
-            if (score >= 50) return '#f59e0b' // Amber
-            if (score >= 35) return '#ea580c' // Orange
-            return '#dc2626' // Red
+            if (score >= 75) return '#ef4444' // Large shortfall
+            if (score >= 35) return '#f59e0b' // Moderate shortfall
+            return '#10b981' // Small shortfall
         } else {
             if (score >= 80) return '#059669' // Emerald
             if (score >= 50) return '#0891b2' // Cyan
@@ -247,18 +244,10 @@ export default function Map() {
                 </div>
             </div>
 
-            {/* Filter Controls - Desktop Only */}
-            <div className='hidden md:block absolute bottom-24 left-4 z-10'>
-                <MapFilters
-                    filters={chargerFilters}
-                    onFilterChange={setChargerFilters}
-                />
-            </div>
-
             {/* --- FUTURISTIC HOVER CARD --- */}
             {hoveredState && (
                 <div className='absolute top-36 right-4 md:right-8 pointer-events-auto md:pointer-events-none z-20'>
-                    <div className='hud-panel rounded-2xl p-5 min-w-[280px] md:min-w-[320px] animate-slide-in backdrop-blur-xl relative'>
+                    <div className='hud-panel rounded-2xl p-5 w-[calc(100vw-2rem)] max-w-[420px] max-h-[calc(100dvh-10rem)] overflow-y-auto animate-slide-in backdrop-blur-xl relative'>
                         {/* Close button - mobile only */}
                         <button
                             onClick={() => setHoveredState(null)}
@@ -301,83 +290,78 @@ export default function Map() {
                             <div className='flex justify-between items-end mb-1'>
                                 <span className='text-xs font-mono text-foreground/60 uppercase tracking-wider'>
                                     {chargerFilters.opportunityMode
-                                        ? 'Opportunity Score'
+                                        ? 'Projected 2030 Gap'
                                         : 'EV Readiness'}
                                 </span>
                                 <span
                                     className='text-4xl font-bold'
                                     style={{
                                         color: getScoreColor(
-                                            hoveredState.score || 0
+                                            hoveredState.score ?? null
                                         )
                                     }}
                                 >
-                                    {Math.round(hoveredState.score || 0)}
+                                    {hoveredState.score == null ? 'Unrated' : `${Math.round(hoveredState.score)}${chargerFilters.opportunityMode ? '%' : ''}`}
                                 </span>
                             </div>
+                            <p className='text-xs text-foreground/70 mb-3'>
+                                {chargerFilters.opportunityMode ? 'Lower is better · less charging provision missing' : 'Higher is better · more of the current target met'}
+                            </p>
+                            {chargerFilters.opportunityMode && hoveredState.score != null && (
+                                <p className='text-sm text-foreground/90 mb-3'>
+                                    {Math.round(hoveredState.score)}% still needed · {100 - Math.round(hoveredState.score)}% of the modeled 2030 target covered
+                                </p>
+                            )}
                             {/* Visual Progress Bar */}
                             <div className='w-full h-1.5 bg-white/10 rounded-full overflow-hidden'>
                                 <div
                                     className='h-full transition-all duration-500 ease-out shadow-[0_0_10px_currentColor]'
                                     style={{
-                                        width: `${hoveredState.score}%`,
+                                        width: `${hoveredState.score ?? 0}%`,
                                         backgroundColor: getScoreColor(
-                                            hoveredState.score || 0
+                                            hoveredState.score ?? null
                                         )
                                     }}
                                 />
                             </div>
                         </div>
 
+                        {hoveredState.model_message && (
+                            <p role='note' className='text-xs text-foreground/80 mb-4 leading-relaxed'>{hoveredState.model_message}</p>
+                        )}
+                        {hoveredState.traffic_message && (
+                            <p role='note' className='text-xs text-foreground/70 mb-4 leading-relaxed'>{hoveredState.traffic_message}</p>
+                        )}
                         {/* Data Grid */}
+                        {hoveredState.capacity_message && (
+                            <p role='note' className='text-xs text-foreground/70 mb-4 leading-relaxed'>
+                                {hoveredState.capacity_message}
+                            </p>
+                        )}
                         <div className='grid grid-cols-2 gap-4 border-t border-white/10 pt-4'>
                             <div>
                                 <span className='text-[10px] font-mono text-foreground/50 uppercase block mb-1'>
                                     {chargerFilters.usePortWeighting
-                                        ? 'Ports'
-                                        : 'Stations'}
+                                        ? 'Open-access ports'
+                                        : 'Open-access sites'}
                                 </span>
                                 <span className='text-xl font-semibold text-foreground'>
-                                    {hoveredState.filtered_charger_count ||
-                                        hoveredState.charger_count ||
-                                        0}
+                                    {hoveredState.filtered_charger_count ?? '—'}
                                 </span>
                             </div>
 
                             <div>
                                 <span className='text-[10px] font-mono text-foreground/50 uppercase block mb-1'>
-                                    {chargerFilters.opportunityMode ? 'Opportunity Level' : 'Service Level'}
+                                    {chargerFilters.opportunityMode ? 'Projected Gap' : 'Target Coverage'}
                                 </span>
                                 <span
                                     className='text-xl font-semibold'
                                     style={{
-                                        color: getScoreColor(hoveredState.score || 0)
+                                        color: getScoreColor(hoveredState.score ?? null)
                                     }}
                                 >
-                                    {chargerFilters.opportunityMode
-                                        ? (hoveredState.score || 0) >= 90
-                                            ? 'Critical'     // 90-100: Critical opportunity
-                                            : (hoveredState.score || 0) >= 75
-                                            ? 'Very High'    // 75-89: Very high opportunity
-                                            : (hoveredState.score || 0) >= 60
-                                            ? 'High'         // 60-74: High opportunity
-                                            : (hoveredState.score || 0) >= 45
-                                            ? 'Moderate'     // 45-59: Moderate opportunity
-                                            : (hoveredState.score || 0) >= 30
-                                            ? 'Low'          // 30-44: Low opportunity
-                                            : (hoveredState.score || 0) >= 15
-                                            ? 'Very Low'     // 15-29: Very low opportunity
-                                            : 'Minimal'      // 0-14: Minimal opportunity
-                                        : (hoveredState.score || 0) >= 80
-                                            ? 'Excellent'
-                                            : (hoveredState.score || 0) >= 60
-                                            ? 'Good'
-                                            : (hoveredState.score || 0) >= 40
-                                            ? 'Fair'
-                                            : hoveredState.population &&
-                                              hoveredState.population < 10000
-                                            ? 'Rural'
-                                            : 'Poor'}
+                                    {hoveredState.score == null ? 'Unrated' : chargerFilters.opportunityMode
+                                        ? `${hoveredState.score}% gap` : `${hoveredState.score}% of target`}
                                 </span>
                             </div>
                         </div>
@@ -388,54 +372,25 @@ export default function Map() {
             <SupportBanner />
 
             {/* --- LEGEND --- */}
-            <div
-                className='absolute left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0 z-10 w-[260px]'
-                style={{ bottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}
-            >
-                <div className='hud-panel rounded-full px-6 py-3'>
-                    <div className='flex items-center justify-center gap-6 text-xs font-medium'>
-                        <div className='flex items-center gap-2'>
-                            <div
-                                className={`w-2 h-2 rounded-full ${
-                                    chargerFilters.opportunityMode
-                                        ? 'bg-yellow-400 shadow-[0_0_8px_rgb(251,191,36)]'
-                                        : 'bg-neon-high shadow-[0_0_8px_var(--neon-high)]'
-                                }`}
-                            ></div>
-                            <span className='text-foreground/90'>
-                                {chargerFilters.opportunityMode
-                                    ? 'High'
-                                    : 'Excellent'}
-                            </span>
-                        </div>
-                        <div className='flex items-center gap-2'>
-                            <div
-                                className={`w-2 h-2 rounded-full ${
-                                    chargerFilters.opportunityMode
-                                        ? 'bg-orange-400 shadow-[0_0_8px_rgb(251,146,60)]'
-                                        : 'bg-neon-mid shadow-[0_0_8px_var(--neon-mid)]'
-                                }`}
-                            ></div>
-                            <span className='text-foreground/90'>
-                                {chargerFilters.opportunityMode
-                                    ? 'Med'
-                                    : 'Good'}
-                            </span>
-                        </div>
-                        <div className='flex items-center gap-2'>
-                            <div
-                                className={`w-2 h-2 rounded-full ${
-                                    chargerFilters.opportunityMode
-                                        ? 'bg-red-400 shadow-[0_0_8px_rgb(248,113,113)]'
-                                        : 'bg-neon-low shadow-[0_0_8px_var(--neon-low)]'
-                                }`}
-                            ></div>
-                            <span className='text-foreground/90'>
-                                {chargerFilters.opportunityMode
-                                    ? 'Low'
-                                    : 'Poor'}
-                            </span>
-                        </div>
+            <div data-map-controls className='absolute left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0 z-10 w-[300px] max-w-[calc(100vw-2rem)] md:max-h-[calc(100dvh-10rem)] flex flex-col items-start gap-3'
+                style={{ bottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}>
+                <div data-map-filters className='hidden md:block min-h-0 overflow-y-auto max-w-full shrink'>
+                    <MapFilters filters={chargerFilters} onFilterChange={setChargerFilters} />
+                </div>
+                <div data-map-legend className='hud-panel rounded-2xl px-5 py-3 w-full shrink-0'>
+                    <p className='text-[11px] text-center text-foreground/80 mb-2'>
+                        {chargerFilters.opportunityMode ? '2030 projected gap · lower is better' : 'Current target coverage · higher is better'}
+                    </p>
+                    <div className='flex items-center justify-between gap-3 text-xs font-medium'>
+                        {chargerFilters.opportunityMode ? <>
+                            <span className='flex items-center gap-2'><span className='w-2 h-2 rounded-full bg-emerald-500' />0% gap</span>
+                            <span className='flex items-center gap-2'><span className='w-2 h-2 rounded-full bg-amber-500' />50%</span>
+                            <span className='flex items-center gap-2'><span className='w-2 h-2 rounded-full bg-red-500' />100% gap</span>
+                        </> : <>
+                            <span className='flex items-center gap-2'><span className='w-2 h-2 rounded-full bg-purple-900' />0% met</span>
+                            <span className='flex items-center gap-2'><span className='w-2 h-2 rounded-full bg-blue-600' />50%</span>
+                            <span className='flex items-center gap-2'><span className='w-2 h-2 rounded-full bg-emerald-600' />100% met</span>
+                        </>}
                     </div>
                 </div>
             </div>

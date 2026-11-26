@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import type { ToastMessage } from '@/lib/error-handling'
 
 interface ToastProps {
@@ -73,7 +73,7 @@ export function ToastContainer({ messages, onDismiss }: ToastContainerProps) {
 export function useToast() {
   const [messages, setMessages] = useState<ToastMessage[]>([])
 
-  const showToast = (
+  const showToast = useCallback((
     level: ToastMessage['level'],
     title: string,
     message?: string,
@@ -81,19 +81,21 @@ export function useToast() {
   ) => {
     const id = Math.random().toString(36).substr(2, 9)
     setMessages(prev => [...prev, { id, level, title, message, duration }])
-  }
+  }, [])
 
-  const dismissToast = (id: string) => {
+  const dismissToast = useCallback((id: string) => {
     setMessages(prev => prev.filter(msg => msg.id !== id))
-  }
+  }, [])
+
+  const showError = useCallback((title: string, message?: string) => showToast('error', title, message), [showToast])
+  const showWarning = useCallback((title: string, message?: string) => showToast('warning', title, message), [showToast])
+  const showInfo = useCallback((title: string, message?: string) => showToast('info', title, message), [showToast])
+  const showSuccess = useCallback((title: string, message?: string) => showToast('success', title, message, 2000), [showToast])
 
   return {
     messages,
     showToast,
     dismissToast,
-    showError: (title: string, message?: string) => showToast('error', title, message),
-    showWarning: (title: string, message?: string) => showToast('warning', title, message),
-    showInfo: (title: string, message?: string) => showToast('info', title, message),
-    showSuccess: (title: string, message?: string) => showToast('success', title, message, 2000)
+    showError, showWarning, showInfo, showSuccess
   }
 }

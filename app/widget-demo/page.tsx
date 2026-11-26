@@ -31,13 +31,14 @@ const DEMO_DATA: ScoreData = {
     location: 'Austin, TX 78701',
     breakdown: {
         nearby_chargers: 32,
-        fast_charging: 20,
-        network_diversity: 14,
-        charging_density: 12
+        fast_charging: 15,
+        network_diversity: 21,
+        charging_density: 10
     },
     chargers: {
         within_5_miles: 47,
         dcfast_count: 12,
+        dcfast_within_5_miles: 12,
         nearest: {
             name: 'Tesla Supercharger',
             distance: 0.3
@@ -205,7 +206,7 @@ export default function WidgetDemoPage() {
                                                 =
                                             </span>
                                             <span className='text-amber-400'>
-                                                "https://canicharge.com/widget.js"
+                                                &quot;https://canicharge.com/widget.js&quot;
                                             </span>
                                             {'\n  '}
                                             <span className='text-emerald-400'>
@@ -215,7 +216,7 @@ export default function WidgetDemoPage() {
                                                 =
                                             </span>
                                             <span className='text-blue-400'>
-                                                "YOUR_API_KEY"
+                                                &quot;YOUR_API_KEY&quot;
                                             </span>
                                             {'\n  '}
                                             <span className='text-emerald-400'>
@@ -225,7 +226,7 @@ export default function WidgetDemoPage() {
                                                 =
                                             </span>
                                             <span className='text-amber-400'>
-                                                "Austin, TX"
+                                                &quot;Austin, TX&quot;
                                             </span>
                                             {'\n  '}
                                             <span className='text-emerald-400'>
@@ -235,7 +236,7 @@ export default function WidgetDemoPage() {
                                                 =
                                             </span>
                                             <span className='text-amber-400'>
-                                                "{activeSize}"
+                                                &quot;{activeSize}&quot;
                                             </span>
                                             {'\n  '}
                                             <span className='text-emerald-400'>
@@ -245,7 +246,7 @@ export default function WidgetDemoPage() {
                                                 =
                                             </span>
                                             <span className='text-amber-400'>
-                                                "{activeTheme}"
+                                                &quot;{activeTheme}&quot;
                                             </span>
                                             {'\n'}
                                             <span className='text-cyan-400'>

@@ -29,7 +29,7 @@ const endpoints: Endpoint[] = [
         method: 'GET',
         path: '/api/ev-score',
         description:
-            'Get the EV readiness score for any US location. Returns a score from 0-100, letter grade, and detailed breakdown of charging infrastructure.',
+            'Get the EV readiness score for any US location. Returns a regional score from 0-100, or an unrated result when required data is missing. Nearby station counts are based on actual distances.',
         params: [
             {
                 name: 'address',
@@ -73,9 +73,9 @@ const endpoints: Endpoint[] = [
   "message": "Good news! Austin, TX has solid EV charging options.",
   "breakdown": {
     "nearby_chargers": 32,
-    "fast_charging": 20,
-    "network_diversity": 14,
-    "charging_density": 12
+    "fast_charging": 15,
+    "network_diversity": 21,
+    "charging_density": 10
   },
   "chargers": {
     "within_1_mile": 5,

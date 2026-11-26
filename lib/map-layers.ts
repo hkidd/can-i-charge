@@ -8,7 +8,7 @@ export function createPolygonLayers(map: mapboxgl.Map) {
         if (
             layers[i].type === 'symbol' &&
             layers[i].layout &&
-            (layers[i].layout as any)?.['text-field']
+            'text-field' in (layers[i].layout ?? {})
         ) {
             labelLayerId = layers[i].id
             break
@@ -25,7 +25,9 @@ export function createPolygonLayers(map: mapboxgl.Map) {
                 'fill-color': [
                     'interpolate',
                     ['linear'],
-                    ['get', 'score'],
+                    ['number', ['get', 'score'], -1],
+                    -1,
+                    '#64748b',
                     0,
                     '#2e1065', // Deep Violet (Low)
                     35,
@@ -41,7 +43,7 @@ export function createPolygonLayers(map: mapboxgl.Map) {
                 'fill-opacity': [
                     'interpolate',
                     ['linear'],
-                    ['get', 'score'],
+                    ['number', ['get', 'score'], 0],
                     0,
                     0.3, // Low scores blend into background more
                     100,
@@ -62,7 +64,9 @@ export function createPolygonLayers(map: mapboxgl.Map) {
                 'line-color': [
                     'interpolate',
                     ['linear'],
-                    ['get', 'score'],
+                    ['number', ['get', 'score'], -1],
+                    -1,
+                    '#64748b',
                     0,
                     '#7c3aed', // Bright Purple Edge
                     50,
@@ -133,7 +137,7 @@ export function createTextLabels(map: mapboxgl.Map, zoomLevel: number) {
         map.removeLayer('region-labels-halo')
 
     // Determine what to show based on zoom level
-    let textField: any = ''
+    let textField: string | mapboxgl.ExpressionSpecification = ''
     let minZoom = 0
     let maxZoom = 24
 
@@ -237,14 +241,14 @@ export function removeExistingLayers(map: mapboxgl.Map) {
         if (map.getLayer(layerId)) {
             try {
                 map.removeLayer(layerId)
-            } catch (err) {}
+            } catch {}
         }
     })
     ;['regions', 'charger-points'].forEach((sourceId) => {
         if (map.getSource(sourceId)) {
             try {
                 map.removeSource(sourceId)
-            } catch (err) {}
+            } catch {}
         }
     })
 }

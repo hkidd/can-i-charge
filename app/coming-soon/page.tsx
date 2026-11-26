@@ -58,8 +58,8 @@ export default function ComingSoonPage() {
                             Coming Soon
                         </h1>
                         <p className="text-xl text-white/50 mb-8">
-                            We're putting the finishing touches on our API and embeddable widget.
-                            Leave your email to be notified when it's ready.
+                            We&apos;re putting the finishing touches on our API and embeddable widget.
+                            Leave your email to be notified when it&apos;s ready.
                         </p>
                     </motion.div>
 
@@ -71,7 +71,7 @@ export default function ComingSoonPage() {
                         {submitted ? (
                             <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
                                 <Bell className="w-5 h-5 mx-auto mb-2" />
-                                <p>You're on the list! We'll notify you when we launch.</p>
+                                <p>You&apos;re on the list! We&apos;ll notify you when we launch.</p>
                             </div>
                         ) : (
                             <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">

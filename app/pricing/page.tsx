@@ -7,7 +7,7 @@ redirect('/coming-soon')
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, X, Zap, Map, Code, Building2, Sparkles } from 'lucide-react'
+import { Check, X, Zap, Map, Building2 } from 'lucide-react'
 import Header from '@/components/Header'
 
 const FEATURES = [

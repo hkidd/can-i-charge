@@ -19,18 +19,19 @@ import AddressSearch from '@/components/AddressSearch'
 const DEMO_SCORE_DATA: ScoreData = {
     score: 78,
     grade: 'B+',
-    percentile: 82,
+    percentile: null,
     message: 'Great EV infrastructure',
     location: 'Austin, TX 78701',
     breakdown: {
-        nearby_chargers: 32,
-        fast_charging: 20,
-        network_diversity: 14,
-        charging_density: 12
+        nearby_chargers: 63,
+        fast_charging: 15,
+        network_diversity: 0,
+        charging_density: 0
     },
     chargers: {
         within_5_miles: 47,
         dcfast_count: 12,
+        dcfast_within_5_miles: 12,
         nearest: {
             name: 'Tesla Supercharger',
             distance: 0.3
@@ -255,7 +256,7 @@ export default function LandingPage() {
                         <div className='grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-16 lg:gap-24'>
                             {[
                                 {
-                                    value: 60000,
+                                    value: 84000,
                                     suffix: '+',
                                     label: 'Charging Stations',
                                     color: '#2563eb'
@@ -366,11 +367,11 @@ export default function LandingPage() {
                     <div className='max-w-6xl mx-auto w-full'>
                         <AnimatedSection className='text-center mb-16'>
                             <h2 className='text-4xl md:text-6xl font-bold mb-4 text-white'>
-                                Four factors. One score.
+                                Supply. Demand. Readiness.
                             </h2>
                             <p className='text-xl text-slate-400 max-w-2xl mx-auto'>
-                                Our algorithm analyzes multiple dimensions of EV
-                                infrastructure
+                                Reported public ports compared with fleet-based
+                                charging targets
                             </p>
                         </AnimatedSection>
 
@@ -378,26 +379,26 @@ export default function LandingPage() {
                             {[
                                 {
                                     icon: MapPin,
-                                    title: 'Proximity',
-                                    subtitle: 'Stations nearby',
+                                    title: 'Demand',
+                                    subtitle: 'Registered or estimated EV fleet',
                                     color: '#10b981'
                                 },
                                 {
                                     icon: Zap,
-                                    title: 'Speed',
-                                    subtitle: 'Fast charging access',
+                                    title: 'Level 2',
+                                    subtitle: 'Destination charging target',
                                     color: '#06b6d4'
                                 },
                                 {
                                     icon: Building2,
-                                    title: 'Diversity',
-                                    subtitle: 'Network variety',
+                                    title: 'Fast Charging',
+                                    subtitle: 'BEV fast-charging target',
                                     color: '#3b82f6'
                                 },
                                 {
                                     icon: Gauge,
-                                    title: 'Density',
-                                    subtitle: 'Coverage depth',
+                                    title: '2030 Scenario',
+                                    subtitle: 'Projected provision gap',
                                     color: '#8b5cf6'
                                 }
                             ].map((factor, i) => (
@@ -444,19 +445,18 @@ export default function LandingPage() {
                         <div className='grid grid-cols-1 lg:grid-cols-2 gap-16 items-center'>
                             <AnimatedSection direction='left'>
                                 <p className='text-blue-200 text-sm font-medium uppercase tracking-wider mb-4'>
-                                    Rankings
+                                    State benchmarks
                                 </p>
                                 <h2 className='text-4xl md:text-5xl font-bold mb-6 text-white'>
-                                    Most EV-ready states
+                                    Current state provision
                                 </h2>
                                 <p className='text-xl text-blue-100 mb-8'>
-                                    See which states are leading the charge in
-                                    EV infrastructure. Rankings based on average
-                                    scores across all ZIP codes.
+                                    Absolute targets based on state EV registrations.
+                                    A score of 100 means both modeled charging
+                                    provision targets are met.
                                 </p>
-                                <Button href='/explore' variant='secondary'>
-                                    Explore Full Map
-                                </Button>
+                                <Button href='/explore' variant='secondary'>Explore Full Map</Button>
+                                <a href='/methodology' className='block mt-5 text-blue-100 underline'>How this score works</a>
                             </AnimatedSection>
 
                             <AnimatedSection direction='right'>
