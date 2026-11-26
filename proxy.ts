@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   // Clone the request headers
   const requestHeaders = new Headers(request.headers)
   
@@ -29,7 +29,7 @@ export function middleware(request: NextRequest) {
     "style-src 'self' 'unsafe-inline' https://api.mapbox.com https://*.mapbox.com",
     "img-src 'self' data: blob: https://api.mapbox.com https://*.mapbox.com https://*.maptiler.com",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.supabase.co https://api.mapbox.com https://*.mapbox.com https://*.maptiler.com wss://*.supabase.co https://api.geocode.earth https://o4504330929045504.ingest.sentry.io https://cdn.jsdelivr.net https://developer.nrel.gov",
+    "connect-src 'self' https://*.supabase.co https://api.mapbox.com https://*.mapbox.com https://*.maptiler.com wss://*.supabase.co https://api.geocode.earth https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://cdn.jsdelivr.net https://developer.nlr.gov",
     "worker-src 'self' blob:",
     "frame-ancestors 'none'",
     "form-action 'self'",
@@ -59,7 +59,6 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)

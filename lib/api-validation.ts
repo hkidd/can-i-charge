@@ -42,9 +42,28 @@ export const GeocodeResponseSchema = z.object({
 // EV Score schemas
 export const EVScoreResponseSchema = z.object({
   success: z.boolean(),
-  score: z.number(),
+  score: z.number().nullable(),
   grade: z.string(),
-  percentile: z.number(),
+  percentile: z.number().nullable(),
+  scoring_version: z.string(),
+  evidence: z.object({
+    model_version: z.string(), horizon: z.enum(['current','2030_scenario']), registration_year: z.number(),
+    fleet_basis: z.enum(['state_registration','population_estimate']), estimated_plugin_vehicles: z.number(),
+    scenario_plugin_vehicles: z.number(), traffic_basis: z.enum(['regional_2023','state_2023_proxy','unavailable']),
+    traffic_multiplier: z.number(), level2_ports: z.number(), fast_ports: z.number(),
+    target_level2_ports: z.number(), target_fast_ports: z.number(), level2_gap: z.number(), fast_gap: z.number(),
+    level2_coverage: z.number(), fast_coverage: z.number(), excluded_restricted_stations: z.number(),
+    excluded_unknown_access_stations: z.number(), summary: z.string(), limitations: z.string()
+  }).nullable(),
+  data_quality: z.object({
+    capacity_reporting: z.enum(['complete', 'partial', 'insufficient', 'unknown']),
+    station_count: z.number().int().nonnegative().nullable(),
+    reported_capacity_station_count: z.number().int().nonnegative().nullable(),
+    unknown_capacity_station_count: z.number().int().nonnegative().nullable(),
+    reporting_fraction: z.number().min(0).max(1).nullable(),
+    minimum_reporting_fraction: z.number().min(0).max(1),
+    message: z.string().nullable()
+  }),
   location: z.string(),
   latitude: z.number(),
   longitude: z.number(),
@@ -59,10 +78,11 @@ export const EVScoreResponseSchema = z.object({
     fast_charging: z.number(),
     network_diversity: z.number(),
     charging_density: z.number()
-  }),
+  }).nullable(),
   region: z.object({
     name: z.string(),
     type: z.string(),
+    match: z.enum(['requested_region', 'boundary']),
     population: z.number().nullable(),
     distance: z.number()
   }),
@@ -71,6 +91,9 @@ export const EVScoreResponseSchema = z.object({
     within_5_miles: z.number(),
     within_10_miles: z.number(),
     dcfast_count: z.number(),
+    dcfast_within_1_mile: z.number(),
+    dcfast_within_5_miles: z.number(),
+    dcfast_within_10_miles: z.number(),
     level2_count: z.number(),
     level1_count: z.number(),
     total: z.number(),

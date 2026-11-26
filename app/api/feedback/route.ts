@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { logError } from '@/lib/error-handling'
 
 export async function POST(request: NextRequest) {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
         const userAgent = request.headers.get('user-agent') || 'Unknown'
 
         // Insert feedback
-        const { error } = await supabaseAdmin.from('feedback').insert({
+        const { error } = await getSupabaseAdmin().from('feedback').insert({
             email: email || null,
             message: message.trim(),
             user_agent: userAgent
