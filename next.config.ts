@@ -1,12 +1,7 @@
 import type { NextConfig } from 'next'
-import { withSentryConfig } from '@sentry/nextjs'
+import { withSentryConfig } from '@sentry/nextjs/config'
 
 const nextConfig: NextConfig = {
-    // Enable experimental features for better performance
-    experimental: {
-        optimizePackageImports: ['mapbox-gl']
-    },
-
     // Optimize images
     images: {
         remotePatterns: [
@@ -33,15 +28,6 @@ const nextConfig: NextConfig = {
 
     // Headers for static assets and CORS
     async headers() {
-        const isProduction = process.env.NODE_ENV === 'production'
-        const allowedOrigins = isProduction
-            ? [
-                  process.env.NEXT_PUBLIC_URL ||
-                      'https://can-i-charge.vercel.app',
-                  'https://can-i-charge.com'
-              ]
-            : ['http://localhost:3000']
-
         return [
             {
                 source: '/(.*)',
@@ -68,21 +54,19 @@ const nextConfig: NextConfig = {
                 source: '/api/(.*)',
                 headers: [
                     {
-                        key: 'Access-Control-Allow-Origin',
-                        value: allowedOrigins.join(', ')
-                    },
-                    {
-                        key: 'Access-Control-Allow-Methods',
-                        value: 'GET, POST, OPTIONS'
-                    },
-                    {
-                        key: 'Access-Control-Allow-Headers',
-                        value: 'Content-Type, Authorization, X-Admin-Request'
-                    },
-                    {
                         key: 'Cache-Control',
-                        value: 'public, s-maxage=60, stale-while-revalidate=300'
+                        value: 'private, no-store'
                     }
+                ]
+            },
+            {
+                // These read endpoints serve the public map and third-party widgets.
+                source: '/api/:endpoint(ev-score|charging-data|geocode|top-states)',
+                headers: [
+                    { key: 'Access-Control-Allow-Origin', value: '*' },
+                    { key: 'Access-Control-Allow-Methods', value: 'GET, OPTIONS' },
+                    { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+                    { key: 'Access-Control-Expose-Headers', value: 'X-RateLimit-Limit, X-RateLimit-Remaining' }
                 ]
             }
         ]
@@ -102,6 +86,7 @@ export default withSentryConfig(nextConfig, {
         disable: process.env.NODE_ENV === 'development'
     },
 
-    // Disable Sentry features in development
-    disableLogger: process.env.NODE_ENV === 'development'
+    bundleSizeOptimizations: {
+        excludeDebugStatements: process.env.NODE_ENV === 'development'
+    }
 })

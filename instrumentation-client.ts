@@ -1,14 +1,16 @@
 import * as Sentry from '@sentry/nextjs'
-import { env } from '@/lib/env-validation'
+
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
+const isProduction = process.env.NODE_ENV === 'production'
 
 Sentry.init({
-  dsn: env.NEXT_PUBLIC_SENTRY_DSN,
+  dsn: dsn,
   
   // Adjust this value in production, or use tracesSampler for greater control
   tracesSampleRate: 0.1,
   
   // Set environment
-  environment: env.NODE_ENV,
+  environment: process.env.NODE_ENV,
   
   // Configure integrations
   integrations: [
@@ -24,10 +26,10 @@ Sentry.init({
   
   // Session replay
   replaysSessionSampleRate: 0,
-  replaysOnErrorSampleRate: env.NODE_ENV === 'production' ? 1.0 : 0,
+  replaysOnErrorSampleRate: isProduction ? 1.0 : 0,
   
   // Filter out known errors
-  beforeSend(event, hint) {
+  beforeSend(event) {
     // Filter out map-related network errors that are expected
     if (event.exception?.values?.[0]?.value?.includes('Load failed')) {
       return null
@@ -35,7 +37,7 @@ Sentry.init({
     
     // Filter out CSP violations for development
     if (event.exception?.values?.[0]?.type === 'SecurityPolicyViolationEvent') {
-      return env.NODE_ENV === 'production' ? event : null
+      return isProduction ? event : null
     }
     
     return event
@@ -43,5 +45,7 @@ Sentry.init({
   
   // Additional configuration
   debug: false,
-  enabled: !!env.NEXT_PUBLIC_SENTRY_DSN,
+  enabled: !!dsn,
 })
+
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart

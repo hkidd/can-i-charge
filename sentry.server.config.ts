@@ -21,13 +21,5 @@ Sentry.init({
     Sentry.httpIntegration(),
   ],
   
-  // Filter server-side errors
-  beforeSend(event, hint) {
-    // Filter out expected database connection retries
-    if (event.exception?.values?.[0]?.value?.includes('connection')) {
-      return null
-    }
-    
-    return event
-  },
+
 })
