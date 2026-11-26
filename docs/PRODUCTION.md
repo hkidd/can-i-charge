@@ -555,3 +555,26 @@ cannot establish compatibility with every live constraint or custom function.
 | `RESEND_API_KEY` | Billing/email | Email delivery; verify the configured sender |
 | `NEXT_PUBLIC_SENTRY_DSN` | Monitoring | Error reporting |
 | `SENTRY_AUTH_TOKEN` | Optional build | Source map upload |
+
+## Refresh read timeout correction — 2026-11-26
+
+The scheduled `GET /api/smart-update` run at 03:30 UTC failed while reading
+`zip_level_data` through PostgREST. Database logs identified an ordered
+`SELECT * LIMIT … OFFSET …` statement timing out. Run
+`ca8d514e-a50b-4188-bffc-3fa73e3416a8` was marked failed; the previously
+published snapshot was retained, so incomplete station data never went live.
+
+The refresh now walks indexed primary keys instead of scanning progressively
+larger offsets. Regional references request only identity, location, population
+provenance, and retained traffic inputs; charger counts, filter summaries,
+public supply, and demand JSON are rebuilt from station data. Reference pages
+are bounded to 500 rows. Cursor validation rejects duplicate or unordered rows,
+server-capped pages are fully traversed, and errors identify the failing table.
+The existing processing deadline and publication safeguards remain in place.
+
+Read-only checks through the actual refreshed store and production Data API
+retrieved all 51 state, 3,142 county, and 34,074 ZIP references. ZIP reads took
+21.2 seconds cold and 7.2 seconds warm. Complete staged (84,668) and published
+(84,538) station snapshots loaded in 39.6 seconds combined. No schema changes
+or timeout increases are required. Release this patch from its reviewed GitHub
+commit; deployment records must identify that commit rather than a dirty tree.

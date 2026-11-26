@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { getSupabaseAdmin } from './supabase-admin'
-import { readAllPages } from './db-pagination'
+import { readAllKeysetPages } from './db-pagination'
 import type { Station } from './station-model'
 
 const runSchema = z.object({
@@ -55,17 +55,27 @@ export class RefreshStore {
         }
     }
     async stations(runId?: string) {
-        return readAllPages<Station>((from, to) => {
-            let query = getSupabaseAdmin().from(runId ? 'charging_stations_staging' : 'charging_stations')
-                .select('*').order('id').range(from, to)
+        const table = runId ? 'charging_stations_staging' : 'charging_stations'
+        return readAllKeysetPages<Station>((after, limit) => {
+            let query = getSupabaseAdmin().from(table)
+                .select('*').order('id').limit(limit)
+            if (after) query = query.gt('id', after)
             if (runId) query = query.eq('refresh_run_id', runId)
             return this.signal ? query.abortSignal(this.signal) : query
-        })
+        }, 1000, 1000000, table)
     }
     async reference(table: Exclude<SnapshotTable, 'charging_stations'>) {
-        return readAllPages<Record<string, unknown>>((from, to) => {
-            const query = getSupabaseAdmin().from(table).select('*').order('id').range(from, to)
-            return this.signal ? query.abortSignal(this.signal) : query
-        })
+        // Counts and supply/filter JSON are rebuilt from stations, never reference inputs.
+        // Fetching them for every ZIP made late OFFSET pages exceed the database timeout.
+        const shared = 'id,center_lat,center_lng,population,population_source,traffic_data'
+        const columns: string = table === 'state_level_data' ? `${shared},state_name`
+            : table === 'county_level_data' ? `${shared},county_name,county_fips,state,daily_vmt,vmt_per_capita,traffic_score`
+            : `${shared},zip_code,state`
+        return readAllKeysetPages<Record<string, unknown> & { id: string }>((after, limit) => {
+            let query = getSupabaseAdmin().from(table).select(columns).order('id').limit(limit)
+            if (after) query = query.gt('id', after)
+            if (this.signal) query = query.abortSignal(this.signal)
+            return query.overrideTypes<(Record<string, unknown> & { id: string })[], { merge: false }>()
+        }, 500, 1000000, table)
     }
 }

@@ -17,3 +17,27 @@ export async function readAllPages<T>(
         if (rows.length > maximumRows) throw new Error('Snapshot exceeded the supported row limit')
     }
 }
+
+/** Walk an indexed, immutable primary key without increasingly expensive OFFSET scans. */
+export async function readAllKeysetPages<T extends { id: string }>(
+    read: (after: string | undefined, limit: number) => PromiseLike<Page<T>>,
+    pageSize = 1000,
+    maximumRows = 1000000,
+    context = 'snapshot'
+): Promise<T[]> {
+    const rows: T[] = []
+    let after: string | undefined
+    for (;;) {
+        const { data, error } = await read(after, pageSize)
+        if (error) throw new Error(`Database read failed (${context}): ${error.message}`)
+        if (!data?.length) return rows
+        for (const row of data) {
+            if (typeof row.id !== 'string' || !row.id || (after !== undefined && row.id <= after)) {
+                throw new Error(`Database cursor did not advance (${context})`)
+            }
+            after = row.id
+            rows.push(row)
+        }
+        if (rows.length > maximumRows) throw new Error('Snapshot exceeded the supported row limit')
+    }
+}
