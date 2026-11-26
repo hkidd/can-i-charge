@@ -1,3 +1,5 @@
+import type { NRELStation } from './station-model'
+
 // Geocoding: Convert address to coordinates
 export async function geocodeAddress(address: string): Promise<{
     latitude: number
@@ -76,7 +78,7 @@ export async function reverseGeocode(
 // Fetch charging stations from NREL
 export async function fetchNRELChargingStations(
     state?: string
-): Promise<any[] | null> {
+): Promise<NRELStation[] | null> {
     const apiKey = process.env.NREL_API_KEY
 
     if (!apiKey) {
@@ -86,7 +88,7 @@ export async function fetchNRELChargingStations(
 
     try {
         const stateParam = state ? `&state=${state}` : ''
-        const url = `https://developer.nrel.gov/api/alt-fuel-stations/v1.json?api_key=${apiKey}&fuel_type=ELEC&country=US${stateParam}&limit=all`
+        const url = `https://developer.nlr.gov/api/alt-fuel-stations/v1.json?api_key=${apiKey}&fuel_type=ELEC&country=US&status=E&access=public${stateParam}&limit=all`
 
         const response = await fetch(url, {
             next: { revalidate: 86400 } // Cache for 24 hours
