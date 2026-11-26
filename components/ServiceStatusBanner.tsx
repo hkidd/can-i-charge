@@ -43,7 +43,7 @@ export default function ServiceStatusBanner() {
     const active = health?.maintenance?.active
     const message = unavailable ? 'Charging data is temporarily unavailable. Please try again shortly.'
         : active ? 'Charging data is being updated. Some results may be temporarily unavailable.'
-        : health?.status === 'degraded' ? 'Charging data may be out of date. An update is needed.' : null
+        : health?.status === 'degraded' ? 'Charging data updates are temporarily delayed. The map shows the last available data.' : null
     const published = health?.checks?.refresh?.last_published_at
     const date = published ? new Date(published) : null
     const lastUpdated = date && Number.isFinite(date.getTime()) ? date.toLocaleString(undefined, {
