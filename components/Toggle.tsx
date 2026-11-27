@@ -1,6 +1,7 @@
 'use client'
 
 interface ToggleProps {
+    label: string
     checked: boolean
     onChange: (checked: boolean) => void
     colorVar?: string // e.g., 'neon-high', 'neon-mid', 'neon-low'
@@ -8,6 +9,7 @@ interface ToggleProps {
 }
 
 export default function Toggle({
+    label,
     checked,
     onChange,
     colorVar = 'neon-mid',
@@ -17,10 +19,11 @@ export default function Toggle({
         <button
             type='button'
             role='switch'
+            aria-label={label}
             aria-checked={checked}
             onClick={() => onChange(!checked)}
             className={`
-                w-11 h-6 rounded-full relative cursor-pointer transition-all duration-300 ease-out border focus:outline-none focus:ring-2 focus:ring-white/20
+                w-11 h-6 rounded-full relative cursor-pointer transition-all duration-300 ease-out border focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white
                 ${
                     checked
                         ? 'border-transparent bg-white/10'

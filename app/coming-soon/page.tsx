@@ -1,27 +1,10 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Zap, Bell } from 'lucide-react'
-import { useState } from 'react'
+import { Zap } from 'lucide-react'
 import Header from '@/components/Header'
 
 export default function ComingSoonPage() {
-    const [email, setEmail] = useState('')
-    const [submitted, setSubmitted] = useState(false)
-    const [submitting, setSubmitting] = useState(false)
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!email.trim()) return
-
-        setSubmitting(true)
-        // For now, just simulate submission
-        // Later this could save to a waitlist table
-        await new Promise(resolve => setTimeout(resolve, 500))
-        setSubmitted(true)
-        setSubmitting(false)
-    }
-
     return (
         <div className="scrollable-page bg-[#030712]">
             <Header currentPage="home" theme="dark" />
@@ -58,40 +41,9 @@ export default function ComingSoonPage() {
                             Coming Soon
                         </h1>
                         <p className="text-xl text-white/50 mb-8">
-                            We&apos;re putting the finishing touches on our API and embeddable widget.
-                            Leave your email to be notified when it&apos;s ready.
+                            Our API and embeddable widget are in development.
+                            You can explore current charging readiness on the free map.
                         </p>
-                    </motion.div>
-
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                    >
-                        {submitted ? (
-                            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                                <Bell className="w-5 h-5 mx-auto mb-2" />
-                                <p>You&apos;re on the list! We&apos;ll notify you when we launch.</p>
-                            </div>
-                        ) : (
-                            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="Enter your email"
-                                    required
-                                    className="flex-1 px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all"
-                                />
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all disabled:opacity-50"
-                                >
-                                    {submitting ? 'Joining...' : 'Notify Me'}
-                                </button>
-                            </form>
-                        )}
                     </motion.div>
 
                     <motion.div
@@ -100,7 +52,7 @@ export default function ComingSoonPage() {
                         transition={{ delay: 0.6 }}
                         className="mt-12"
                     >
-                        <p className="text-white/30 text-sm mb-4">In the meantime, explore the free map</p>
+                        <p className="text-white/60 text-sm mb-4">In the meantime, explore the free map</p>
                         <a
                             href="/explore"
                             className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white font-medium rounded-lg border border-white/10 transition-colors"

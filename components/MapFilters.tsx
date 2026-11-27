@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import Toggle from './Toggle'
+import MapFilterDialog from './MapFilterDialog'
 
 interface MapFiltersProps {
     filters: {
@@ -36,13 +37,14 @@ export default function MapFilters({
     const [connectorExpanded, setConnectorExpanded] = useState(true)
     const [viewModeExpanded, setViewModeExpanded] = useState(true)
     const [isMinimized, setIsMinimized] = useState(false)
+    const id = useId()
 
-    return (
+    const content = (
         <div
             className={`
             ${
                 isMobile
-                    ? 'fixed inset-x-0 bottom-0 hud-panel border-t border-white/10 rounded-t-3xl p-6 z-50 animate-slide-up'
+                    ? 'flex max-h-[calc(100dvh-1rem)] flex-col hud-panel border-t border-white/10 rounded-t-3xl p-6'
                     : isMinimized
                     ? 'hud-panel rounded-full px-4 py-3 min-w-fit'
                     : 'hud-panel rounded-2xl p-5 min-w-[200px] max-w-[260px]'
@@ -51,13 +53,15 @@ export default function MapFilters({
             style={isMobile ? { paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' } : undefined}
         >
             {isMobile && (
-                <div className='flex items-center justify-between mb-6'>
-                    <h3 className='text-lg font-bold text-foreground tracking-wide'>
+                <div className='flex shrink-0 items-center justify-between mb-6'>
+                    <h3 id={`${id}-title`} className='text-lg font-bold text-foreground tracking-wide'>
                         FILTER STATIONS
                     </h3>
                     <button
+                        type='button'
+                        aria-label='Close map filters'
                         onClick={onClose}
-                        className='w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors text-foreground'
+                        className='w-11 h-11 shrink-0 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
                     >
                         <svg
                             className='w-4 h-4'
@@ -83,6 +87,8 @@ export default function MapFilters({
                     }
                 >
                     <button
+                        aria-expanded={!isMinimized}
+                        aria-controls={`${id}-filters`}
                         onClick={() => setIsMinimized(!isMinimized)}
                         className={`w-full flex items-center ${
                             isMinimized
@@ -121,17 +127,20 @@ export default function MapFilters({
 
             {(!isMinimized || isMobile) && (
                 <div
+                    id={`${id}-filters`}
                     className={`flex ${
-                        isMobile ? 'flex-col gap-4' : 'flex-col gap-3'
+                        isMobile ? 'min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain pr-1' : 'flex-col gap-3'
                     }`}
                 >
                     {/* View Mode Section */}
                     <div className='border-b border-white/10 pb-3 mb-2'>
                         <button
+                            aria-expanded={viewModeExpanded}
+                            aria-controls={`${id}-view`}
                             onClick={() =>
                                 setViewModeExpanded(!viewModeExpanded)
                             }
-                            className='w-full flex items-center justify-between text-[9px] font-mono font-semibold uppercase tracking-widest text-foreground/40 mb-3 hover:text-foreground/60 transition-colors'
+                            className='w-full flex items-center justify-between text-[9px] font-mono font-semibold uppercase tracking-widest text-foreground/60 mb-3 hover:text-foreground/80 transition-colors'
                         >
                             <span>View Mode</span>
                             <svg
@@ -152,7 +161,7 @@ export default function MapFilters({
                         </button>
 
                         {viewModeExpanded && (
-                            <div className='space-y-2'>
+                            <div id={`${id}-view`} className='space-y-2'>
                                 {/* Opportunity Mode */}
                                 <div
                                     className={`flex items-center justify-between group ${
@@ -174,6 +183,7 @@ export default function MapFilters({
                                     </div>
                                     <div className='flex items-center justify-center ml-2'>
                                         <Toggle
+                                            label="Opportunity Mode"
                                             checked={filters.opportunityMode}
                                             onChange={(c) =>
                                                 onFilterChange({
@@ -208,6 +218,7 @@ export default function MapFilters({
                                     </div>
                                     <div className='flex items-center justify-center ml-2'>
                                         <Toggle
+                                            label="Show Port Counts"
                                             checked={filters.usePortWeighting}
                                             onChange={(c) =>
                                                 onFilterChange({
@@ -226,8 +237,10 @@ export default function MapFilters({
                     {/* Charging Speed Section */}
                     <div className='border-b border-white/10 pb-3 mb-2'>
                         <button
+                            aria-expanded={speedExpanded}
+                            aria-controls={`${id}-speed`}
                             onClick={() => setSpeedExpanded(!speedExpanded)}
-                            className='w-full flex items-center justify-between text-[9px] font-mono font-semibold uppercase tracking-widest text-foreground/40 mb-3 hover:text-foreground/60 transition-colors'
+                            className='w-full flex items-center justify-between text-[9px] font-mono font-semibold uppercase tracking-widest text-foreground/60 mb-3 hover:text-foreground/80 transition-colors'
                         >
                             <span>Charging Speed</span>
                             <svg
@@ -248,7 +261,7 @@ export default function MapFilters({
                         </button>
 
                         {speedExpanded && (
-                            <div className='space-y-2'>
+                            <div id={`${id}-speed`} className='space-y-2'>
                                 {/* DC Fast */}
                                 <div
                                     className={`flex items-center justify-between group ${
@@ -270,6 +283,7 @@ export default function MapFilters({
                                         </span>
                                     </div>
                                     <Toggle
+                                        label="DC Fast"
                                         checked={filters.showDCFast}
                                         onChange={(c) =>
                                             onFilterChange({
@@ -302,6 +316,7 @@ export default function MapFilters({
                                         </span>
                                     </div>
                                     <Toggle
+                                        label="Level 2"
                                         checked={filters.showLevel2}
                                         onChange={(c) =>
                                             onFilterChange({
@@ -334,6 +349,7 @@ export default function MapFilters({
                                         </span>
                                     </div>
                                     <Toggle
+                                        label="Level 1"
                                         checked={filters.showLevel1}
                                         onChange={(c) =>
                                             onFilterChange({
@@ -351,10 +367,12 @@ export default function MapFilters({
                     {/* Connector Type Section */}
                     <div>
                         <button
+                            aria-expanded={connectorExpanded}
+                            aria-controls={`${id}-connectors`}
                             onClick={() =>
                                 setConnectorExpanded(!connectorExpanded)
                             }
-                            className='w-full flex items-center justify-between text-[9px] font-mono font-semibold uppercase tracking-widest text-foreground/40 mb-3 hover:text-foreground/60 transition-colors'
+                            className='w-full flex items-center justify-between text-[9px] font-mono font-semibold uppercase tracking-widest text-foreground/60 mb-3 hover:text-foreground/80 transition-colors'
                         >
                             <span>Connector Type</span>
                             <svg
@@ -377,7 +395,7 @@ export default function MapFilters({
                         </button>
 
                         {connectorExpanded && (
-                            <div className='space-y-2'>
+                            <div id={`${id}-connectors`} className='space-y-2'>
                                 {/* Tesla/NACS */}
                                 <div
                                     className={`flex items-center justify-between group ${
@@ -393,6 +411,7 @@ export default function MapFilters({
                                         </span>
                                     </div>
                                     <Toggle
+                                        label="Tesla/NACS"
                                         checked={filters.showTesla}
                                         onChange={(c) =>
                                             onFilterChange({
@@ -425,6 +444,7 @@ export default function MapFilters({
                                         </span>
                                     </div>
                                     <Toggle
+                                        label="CCS/J1772"
                                         checked={filters.showCCS}
                                         onChange={(c) =>
                                             onFilterChange({
@@ -442,4 +462,10 @@ export default function MapFilters({
             )}
         </div>
     )
+
+    return isMobile ? (
+        <MapFilterDialog titleId={`${id}-title`} onDismiss={() => onClose?.()}>
+            {content}
+        </MapFilterDialog>
+    ) : content
 }

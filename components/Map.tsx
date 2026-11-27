@@ -223,6 +223,9 @@ export default function Map() {
                 <div className='relative flex items-center min-h-[48px]'>
                     {/* Mobile Filter Button - Left Side */}
                     <button
+                        aria-label='Open map filters'
+                        aria-haspopup='dialog'
+                        aria-expanded={showMobileFilters}
                         onClick={() => setShowMobileFilters(true)}
                         className='absolute left-0 md:hidden w-12 h-12 rounded-full hud-panel flex items-center justify-center text-foreground hover:text-neon-mid transition-colors z-20'
                     >
@@ -413,18 +416,12 @@ export default function Map() {
 
             {/* Mobile Filters Modal */}
             {showMobileFilters && (
-                <>
-                    <div
-                        className='fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden'
-                        onClick={() => setShowMobileFilters(false)}
-                    />
-                    <MapFilters
-                        filters={chargerFilters}
-                        onFilterChange={setChargerFilters}
-                        isMobile={true}
-                        onClose={() => setShowMobileFilters(false)}
-                    />
-                </>
+                <MapFilters
+                    filters={chargerFilters}
+                    onFilterChange={setChargerFilters}
+                    isMobile={true}
+                    onClose={() => setShowMobileFilters(false)}
+                />
             )}
         </div>
     )

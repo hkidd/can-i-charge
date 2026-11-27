@@ -35,7 +35,7 @@ export default function RivianBadge() {
 
     return (
         <div
-            className={`fixed bottom-20 right-4 z-50 transition-all duration-500 ease-in-out transform ${
+            className={`hidden md:block fixed bottom-20 right-4 z-30 transition-all duration-500 ease-in-out transform ${
                 isVisible
                     ? 'translate-y-0 opacity-100'
                     : 'translate-y-4 opacity-0'
