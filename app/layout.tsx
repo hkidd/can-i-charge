@@ -1,8 +1,15 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Analytics } from '@vercel/analytics/react'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import './globals.css'
+
+export const viewport: Viewport = {
+    width: 'device-width',
+    initialScale: 1,
+    viewportFit: 'cover',
+    themeColor: '#030712'
+}
 
 export const metadata: Metadata = {
     title: 'Can I Charge? - EV Charging Infrastructure Scores',
@@ -19,14 +26,6 @@ export const metadata: Metadata = {
         'Level 2 charging'
     ],
     metadataBase: new URL(process.env.NEXT_PUBLIC_URL || 'https://can-i-charge.vercel.app'),
-    viewport: {
-        width: 'device-width',
-        initialScale: 1,
-        maximumScale: 1,
-        userScalable: false,
-        viewportFit: 'cover'
-    },
-    themeColor: '#030712',
     openGraph: {
         title: 'Can I Charge? - EV Charging Infrastructure Scores',
         description: 'Discover EV charging infrastructure availability for any US address. Get instant scores and insights.',

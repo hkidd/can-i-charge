@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import Lenis from 'lenis'
 
 interface SmoothScrollProps {
@@ -8,10 +8,10 @@ interface SmoothScrollProps {
 }
 
 export default function SmoothScroll({ children }: SmoothScrollProps) {
-    const lenisRef = useRef<Lenis | null>(null)
-
     useEffect(() => {
-        lenisRef.current = new Lenis({
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+        const lenis = new Lenis({
             duration: 1.2,
             easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
             orientation: 'vertical',
@@ -19,15 +19,17 @@ export default function SmoothScroll({ children }: SmoothScrollProps) {
             smoothWheel: true,
         })
 
-        function raf(time: number) {
-            lenisRef.current?.raf(time)
-            requestAnimationFrame(raf)
+        let animationFrame: number
+        function animate(time: number) {
+            lenis.raf(time)
+            animationFrame = requestAnimationFrame(animate)
         }
 
-        requestAnimationFrame(raf)
+        animationFrame = requestAnimationFrame(animate)
 
         return () => {
-            lenisRef.current?.destroy()
+            cancelAnimationFrame(animationFrame)
+            lenis.destroy()
         }
     }, [])
 

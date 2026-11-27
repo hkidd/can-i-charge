@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Heart, Zap, Coffee, Car, MessageCircle, Sparkles, ExternalLink, CreditCard, Key } from 'lucide-react'
+import { Heart, Zap, Coffee, Car, MessageCircle, Sparkles, ExternalLink } from 'lucide-react'
 import Header from '@/components/Header'
 
 export default function SupportPage() {
@@ -13,12 +13,6 @@ export default function SupportPage() {
     const [feedbackSuccess, setFeedbackSuccess] = useState(false)
     const [feedbackError, setFeedbackError] = useState('')
     const [hoveredCard, setHoveredCard] = useState<string | null>(null)
-
-    // API Key resend state
-    const [apiKeyEmail, setApiKeyEmail] = useState('')
-    const [apiKeySubmitting, setApiKeySubmitting] = useState(false)
-    const [apiKeySuccess, setApiKeySuccess] = useState(false)
-    const [apiKeyError, setApiKeyError] = useState('')
 
     const handleFeedbackSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -49,34 +43,6 @@ export default function SupportPage() {
             )
         } finally {
             setFeedbackSubmitting(false)
-        }
-    }
-
-    const handleApiKeyResend = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setApiKeySubmitting(true)
-        setApiKeyError('')
-        setApiKeySuccess(false)
-
-        try {
-            const response = await fetch('/api/resend-key', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: apiKeyEmail })
-            })
-
-            const data = await response.json()
-            if (!response.ok) throw new Error(data.error || 'Failed to send')
-
-            setApiKeySuccess(true)
-            setApiKeyEmail('')
-            setTimeout(() => setApiKeySuccess(false), 5000)
-        } catch (err) {
-            setApiKeyError(
-                err instanceof Error ? err.message : 'Failed to send API key'
-            )
-        } finally {
-            setApiKeySubmitting(false)
         }
     }
 
@@ -315,57 +281,6 @@ export default function SupportPage() {
                             </div>
                             <ExternalLink className="w-4 h-4 text-white/30 group-hover:text-white/60 transition-colors" />
                         </a>
-                    </motion.div>
-                    */}
-
-                    {/* Lost API Key - Hidden until API keys are available
-                    <motion.div
-                        className="mb-16"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.68 }}
-                    >
-                        <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/10">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                                    <Key className="w-5 h-5 text-blue-400" />
-                                </div>
-                                <div>
-                                    <h3 className="text-white font-medium">Lost your API key?</h3>
-                                    <p className="text-sm text-white/40">Enter your email to receive it again</p>
-                                </div>
-                            </div>
-
-                            {apiKeySuccess && (
-                                <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm">
-                                    If you have an active subscription, your API key has been sent to your email.
-                                </div>
-                            )}
-
-                            {apiKeyError && (
-                                <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                                    {apiKeyError}
-                                </div>
-                            )}
-
-                            <form onSubmit={handleApiKeyResend} className="flex gap-3">
-                                <input
-                                    type="email"
-                                    value={apiKeyEmail}
-                                    onChange={(e) => setApiKeyEmail(e.target.value)}
-                                    placeholder="your@email.com"
-                                    required
-                                    className="flex-1 px-4 py-2.5 rounded-lg bg-black/30 border border-white/10 text-white placeholder-white/30 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all text-sm"
-                                />
-                                <button
-                                    type="submit"
-                                    disabled={apiKeySubmitting || !apiKeyEmail.trim()}
-                                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                                >
-                                    {apiKeySubmitting ? 'Sending...' : 'Send'}
-                                </button>
-                            </form>
-                        </div>
                     </motion.div>
                     */}
 

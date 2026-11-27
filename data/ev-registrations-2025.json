@@ -1,0 +1,264 @@
+{
+  "source": "https://afdc.energy.gov/vehicle-registration",
+  "year": 2025,
+  "retrieved_at": "2026-11-25",
+  "source_sha256": "39c95c0d43fc6c1f94e2aa1c314386edf5c8da8355f93f81405fb0ea260075a3",
+  "national_plugin_count": 7454800,
+  "states": [
+    {
+      "state_name": "Alabama",
+      "bev": 24400,
+      "phev": 8300
+    },
+    {
+      "state_name": "Alaska",
+      "bev": 4100,
+      "phev": 1300
+    },
+    {
+      "state_name": "Arizona",
+      "bev": 141800,
+      "phev": 33900
+    },
+    {
+      "state_name": "Arkansas",
+      "bev": 12300,
+      "phev": 4900
+    },
+    {
+      "state_name": "California",
+      "bev": 1843100,
+      "phev": 490900
+    },
+    {
+      "state_name": "Colorado",
+      "bev": 162800,
+      "phev": 57100
+    },
+    {
+      "state_name": "Connecticut",
+      "bev": 48800,
+      "phev": 26400
+    },
+    {
+      "state_name": "Delaware",
+      "bev": 16000,
+      "phev": 6100
+    },
+    {
+      "state_name": "District of Columbia",
+      "bev": 12900,
+      "phev": 4900
+    },
+    {
+      "state_name": "Florida",
+      "bev": 450400,
+      "phev": 88400
+    },
+    {
+      "state_name": "Georgia",
+      "bev": 161200,
+      "phev": 32900
+    },
+    {
+      "state_name": "Hawaii",
+      "bev": 35100,
+      "phev": 9400
+    },
+    {
+      "state_name": "Idaho",
+      "bev": 14100,
+      "phev": 6700
+    },
+    {
+      "state_name": "Illinois",
+      "bev": 164900,
+      "phev": 51600
+    },
+    {
+      "state_name": "Indiana",
+      "bev": 47200,
+      "phev": 19400
+    },
+    {
+      "state_name": "Iowa",
+      "bev": 15100,
+      "phev": 8800
+    },
+    {
+      "state_name": "Kansas",
+      "bev": 18700,
+      "phev": 7800
+    },
+    {
+      "state_name": "Kentucky",
+      "bev": 20700,
+      "phev": 8600
+    },
+    {
+      "state_name": "Louisiana",
+      "bev": 22600,
+      "phev": 5700
+    },
+    {
+      "state_name": "Maine",
+      "bev": 11900,
+      "phev": 10300
+    },
+    {
+      "state_name": "Maryland",
+      "bev": 120500,
+      "phev": 41500
+    },
+    {
+      "state_name": "Massachusetts",
+      "bev": 113900,
+      "phev": 60000
+    },
+    {
+      "state_name": "Michigan",
+      "bev": 112600,
+      "phev": 42100
+    },
+    {
+      "state_name": "Minnesota",
+      "bev": 59800,
+      "phev": 24800
+    },
+    {
+      "state_name": "Mississippi",
+      "bev": 7200,
+      "phev": 3000
+    },
+    {
+      "state_name": "Missouri",
+      "bev": 43700,
+      "phev": 19600
+    },
+    {
+      "state_name": "Montana",
+      "bev": 6900,
+      "phev": 4200
+    },
+    {
+      "state_name": "Nebraska",
+      "bev": 11800,
+      "phev": 5500
+    },
+    {
+      "state_name": "Nevada",
+      "bev": 85600,
+      "phev": 16100
+    },
+    {
+      "state_name": "New Hampshire",
+      "bev": 16100,
+      "phev": 9500
+    },
+    {
+      "state_name": "New Jersey",
+      "bev": 210000,
+      "phev": 61900
+    },
+    {
+      "state_name": "New Mexico",
+      "bev": 16600,
+      "phev": 7100
+    },
+    {
+      "state_name": "New York",
+      "bev": 209300,
+      "phev": 125100
+    },
+    {
+      "state_name": "North Carolina",
+      "bev": 121000,
+      "phev": 35500
+    },
+    {
+      "state_name": "North Dakota",
+      "bev": 1900,
+      "phev": 1100
+    },
+    {
+      "state_name": "Ohio",
+      "bev": 94200,
+      "phev": 37200
+    },
+    {
+      "state_name": "Oklahoma",
+      "bev": 26800,
+      "phev": 29100
+    },
+    {
+      "state_name": "Oregon",
+      "bev": 98000,
+      "phev": 38900
+    },
+    {
+      "state_name": "Pennsylvania",
+      "bev": 113400,
+      "phev": 55900
+    },
+    {
+      "state_name": "Rhode Island",
+      "bev": 9800,
+      "phev": 6300
+    },
+    {
+      "state_name": "South Carolina",
+      "bev": 35700,
+      "phev": 13700
+    },
+    {
+      "state_name": "South Dakota",
+      "bev": 3000,
+      "phev": 2400
+    },
+    {
+      "state_name": "Tennessee",
+      "bev": 55400,
+      "phev": 16100
+    },
+    {
+      "state_name": "Texas",
+      "bev": 387400,
+      "phev": 79900
+    },
+    {
+      "state_name": "Utah",
+      "bev": 68400,
+      "phev": 19200
+    },
+    {
+      "state_name": "Vermont",
+      "bev": 11900,
+      "phev": 7700
+    },
+    {
+      "state_name": "Virginia",
+      "bev": 134900,
+      "phev": 39300
+    },
+    {
+      "state_name": "Washington",
+      "bev": 236400,
+      "phev": 57100
+    },
+    {
+      "state_name": "West Virginia",
+      "bev": 5000,
+      "phev": 2700
+    },
+    {
+      "state_name": "Wisconsin",
+      "bev": 41900,
+      "phev": 18600
+    },
+    {
+      "state_name": "Wyoming",
+      "bev": 1900,
+      "phev": 1200
+    }
+  ]
+}

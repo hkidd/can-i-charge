@@ -1,6 +1,10 @@
+import { escapeHtml } from './html'
+import { stationCapacity } from './station-filters'
+import type { Station } from './station-model'
+import { readAllPages } from './db-pagination'
 import mapboxgl from 'mapbox-gl'
 import * as topojson from 'topojson-client'
-import { supabaseAdmin } from './supabase'
+import { supabase } from './supabase'
 import { applyFiltersToData, getStateCodeFromFIPS } from './map-utils'
 import {
     createPolygonLayers,
@@ -8,32 +12,80 @@ import {
     createTextLabels,
     removeExistingLayers
 } from './map-layers'
+import type { Feature, FeatureCollection, Geometry, Point } from 'geojson'
+import type { Topology, GeometryCollection } from 'topojson-specification'
+import type { ScoreDataQuality, ScoreFilters, ScoreInputs } from './regional-score'
+
+interface ChargerPoint {
+    name: string | null
+    level1_ports: number
+    level2_ports: number
+    dcfast_ports: number
+    port_counts_known: boolean
+    charging_units: Station['charging_units']
+    charging_units_complete: boolean
+    latitude: number
+    longitude: number
+    charger_type_detailed: string | null
+    network: string | null
+    address: string | null
+    num_ports: number | null
+    ev_connector_types: string[] | null
+    charging_level?: string
+    access_code?: string
+    max_power_kw?: number
+}
+
+interface MapRegion extends ScoreInputs {
+    state_name?: string
+    county_name?: string
+    zip_code?: string
+    state?: string
+    geometry?: Geometry
+}
+type FilteredRegion = MapRegion & { score: number | null; filtered_charger_count: number | null; data_quality: ScoreDataQuality; traffic_message: string | null; model_message: string }
+const mapsWithPointHandlers = new WeakSet<mapboxgl.Map>()
+interface MapLoad { controller: AbortController }
+const regionLoads = new WeakMap<mapboxgl.Map, MapLoad>()
+const pointLoads = new WeakMap<mapboxgl.Map, MapLoad>()
+
+function beginLoad(loads: WeakMap<mapboxgl.Map, MapLoad>, map: mapboxgl.Map) {
+    loads.get(map)?.controller.abort()
+    const request = { controller: new AbortController() }
+    loads.set(map, request)
+    return request
+}
+export function cancelMapLoads(map: mapboxgl.Map) {
+    regionLoads.get(map)?.controller.abort()
+    pointLoads.get(map)?.controller.abort()
+}
+async function fetchMapData(url: string, signal: AbortSignal) {
+    const response = await fetch(url, { signal })
+    if (!response.ok) {
+        window.dispatchEvent(new Event('cic:data-unavailable'))
+        throw new Error('Charging data is temporarily unavailable')
+    }
+    const body = await response.json()
+    window.dispatchEvent(new Event('cic:data-available'))
+    return body as { data: MapRegion[] }
+}
+
 
 const applyThemeColors = (map: mapboxgl.Map, opportunityMode: boolean = false) => {
     if (map.getLayer('region-fills')) {
         if (opportunityMode) {
-            // Opportunity mode: Gold/Orange/Red spectrum
             map.setPaintProperty('region-fills', 'fill-color', [
-                'interpolate',
-                ['linear'],
-                ['get', 'score'],
-                0,
-                '#7f1d1d', // Dark Red
-                35,
-                '#dc2626', // Red
-                50,
-                '#ea580c', // Orange
-                75,
-                '#f59e0b', // Amber
-                100,
-                '#facc15' // Gold
+                'interpolate', ['linear'], ['number', ['get', 'score'], -1],
+                -1, '#64748b', 0, '#059669', 35, '#10b981', 50, '#f59e0b', 75, '#ef4444', 100, '#b91c1c'
             ])
         } else {
             // Normal mode: Purple to Emerald (high contrast)
             map.setPaintProperty('region-fills', 'fill-color', [
                 'interpolate',
                 ['linear'],
-                ['get', 'score'],
+                ['number', ['get', 'score'], -1],
+                -1,
+                '#64748b',
                 0,
                 '#581c87', // Purple-800
                 35,
@@ -51,7 +103,7 @@ const applyThemeColors = (map: mapboxgl.Map, opportunityMode: boolean = false) =
         map.setPaintProperty('region-fills', 'fill-opacity', [
             'interpolate',
             ['linear'],
-            ['get', 'score'],
+            ['number', ['get', 'score'], 0],
             0,
             0.3,
             100,
@@ -61,24 +113,18 @@ const applyThemeColors = (map: mapboxgl.Map, opportunityMode: boolean = false) =
 
     if (map.getLayer('region-borders')) {
         if (opportunityMode) {
-            // Opportunity mode borders
             map.setPaintProperty('region-borders', 'line-color', [
-                'interpolate',
-                ['linear'],
-                ['get', 'score'],
-                0,
-                '#dc2626', // Red edge
-                50,
-                '#f59e0b', // Amber edge
-                100,
-                '#facc15' // Gold edge
+                'interpolate', ['linear'], ['number', ['get', 'score'], -1],
+                -1, '#64748b', 0, '#10b981', 50, '#f59e0b', 100, '#ef4444'
             ])
         } else {
             // Normal mode borders
             map.setPaintProperty('region-borders', 'line-color', [
                 'interpolate',
                 ['linear'],
-                ['get', 'score'],
+                ['number', ['get', 'score'], -1],
+                -1,
+                '#64748b',
                 0,
                 '#a855f7', // Purple-500
                 50,
@@ -93,27 +139,27 @@ const applyThemeColors = (map: mapboxgl.Map, opportunityMode: boolean = false) =
 
 export async function loadStatePolygons(
     map: mapboxgl.Map,
-    filters: any,
+    filters: ScoreFilters,
     setupInteractions: (type: string) => void,
     onError?: (error: Error) => void
 ) {
+    const request = beginLoad(regionLoads, map)
     try {
         const topoResponse = await fetch(
-            'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
+            'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json', { signal: request.controller.signal }
         )
-        const topology = await topoResponse.json()
+        const topology = await topoResponse.json() as Topology<{ states: GeometryCollection<{ name: string }> }>
         const statesGeo = topojson.feature(topology, topology.objects.states)
 
-        const dataResponse = await fetch('/api/charging-data?zoom=4')
-        const scoreData = await dataResponse.json()
+        const scoreData = await fetchMapData('/api/charging-data?zoom=4', request.controller.signal)
 
         const filteredData = applyFiltersToData(scoreData.data, filters)
-        const filteredScoreByName: Record<string, any> = {}
-        filteredData.forEach((state: any) => {
-            filteredScoreByName[state.state_name] = state
+        const filteredScoreByName: Record<string, FilteredRegion> = {}
+        filteredData.forEach(state => {
+            if (state.state_name) filteredScoreByName[state.state_name] = state
         })
 
-        const features = (statesGeo as any).features.map((feature: any) => {
+        const features = statesGeo.features.map((feature) => {
             const stateName = feature.properties.name
             const stateData = filteredScoreByName[stateName]
 
@@ -121,28 +167,34 @@ export async function loadStatePolygons(
                 ...feature,
                 properties: {
                     ...feature.properties,
-                    score: stateData?.score || 0,
+                    score: stateData?.score ?? null,
                     charger_count: stateData?.charger_count || 0,
                     filtered_charger_count:
-                        stateData?.filtered_charger_count || 0,
+                        stateData?.filtered_charger_count ?? null,
                     population: stateData?.population || 0,
-                    state_name: stateName
+                    state_name: stateName,
+                    model_message: stateData?.model_message ?? null,
+                    traffic_message: stateData?.traffic_message ?? null,
+                    capacity_message: stateData?.data_quality.message ?? null,
+                    unknown_port_station_count: stateData?.data_quality.unknown_capacity_station_count ?? null
                 }
             }
         })
 
-        const geojson = { type: 'FeatureCollection', features }
+        const geojson: FeatureCollection = { type: 'FeatureCollection', features }
+
+        if (regionLoads.get(map) !== request) return
 
         if (map.getSource('regions')) {
             ;(map.getSource('regions') as mapboxgl.GeoJSONSource).setData(
-                geojson as any
+                geojson
             )
         } else {
             removeExistingLayers(map)
 
             map.addSource('regions', {
                 type: 'geojson',
-                data: geojson as any
+                data: geojson
             })
 
             createPolygonLayers(map)
@@ -153,6 +205,7 @@ export async function loadStatePolygons(
         // APPLY THEME OVERRIDE
         applyThemeColors(map, filters.opportunityMode)
     } catch (error) {
+        if (request.controller.signal.aborted) return
         console.error('Failed to load state polygons:', error)
         if (onError)
             onError(error instanceof Error ? error : new Error(String(error)))
@@ -161,15 +214,16 @@ export async function loadStatePolygons(
 
 export async function loadCountyPolygons(
     map: mapboxgl.Map,
-    filters: any,
+    filters: ScoreFilters,
     setupInteractions: (type: string) => void,
     onError?: (error: Error) => void
 ) {
+    const request = beginLoad(regionLoads, map)
     try {
         const topoResponse = await fetch(
-            'https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json'
+            'https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json', { signal: request.controller.signal }
         )
-        const topology = await topoResponse.json()
+        const topology = await topoResponse.json() as Topology<{ counties: GeometryCollection<{ name: string }> }>
         const countiesGeo = topojson.feature(
             topology,
             topology.objects.counties
@@ -180,7 +234,7 @@ export async function loadCountyPolygons(
             throw new Error('Map bounds not available')
         }
 
-        const zoom = Math.round(map.getZoom())
+        const zoom = Math.min(8, Math.round(map.getZoom()))
 
         // Expand bounds significantly to load counties beyond immediate viewport
         const buffer = 5 // degrees - much larger buffer for smooth panning
@@ -191,26 +245,24 @@ export async function loadCountyPolygons(
             west: bounds.getWest() - buffer
         }
 
-        const dataResponse = await fetch(
+        const scoreData = await fetchMapData(
             `/api/charging-data?zoom=${zoom}&` +
                 `north=${expandedBounds.north}&` +
                 `south=${expandedBounds.south}&` +
                 `east=${expandedBounds.east}&` +
-                `west=${expandedBounds.west}`
+                `west=${expandedBounds.west}`, request.controller.signal
         )
-
-        const scoreData = await dataResponse.json()
         const filteredData = applyFiltersToData(scoreData.data, filters)
 
-        const scoreByCounty: Record<string, any> = {}
-        filteredData.forEach((county: any) => {
+        const scoreByCounty: Record<string, FilteredRegion> = {}
+        filteredData.forEach((county) => {
             const key = `${county.county_name}-${county.state}`
             scoreByCounty[key] = county
         })
 
-        const features = (countiesGeo as any).features.map((feature: any) => {
+        const features = countiesGeo.features.map((feature) => {
             const countyName = feature.properties.name
-            const stateId = feature.id.toString().substring(0, 2)
+            const stateId = String(feature.id).substring(0, 2)
             const stateCode = getStateCodeFromFIPS(stateId)
             const key = `${countyName}-${stateCode}`
             const countyData = scoreByCounty[key]
@@ -219,29 +271,35 @@ export async function loadCountyPolygons(
                 ...feature,
                 properties: {
                     ...feature.properties,
-                    score: countyData?.score || 0,
+                    score: countyData?.score ?? null,
                     charger_count: countyData?.charger_count || 0,
                     filtered_charger_count:
-                        countyData?.filtered_charger_count || 0,
+                        countyData?.filtered_charger_count ?? null,
                     population: countyData?.population || 0,
                     county_name: countyName,
-                    state: stateCode
+                    state: stateCode,
+                    model_message: countyData?.model_message ?? null,
+                    traffic_message: countyData?.traffic_message ?? null,
+                    capacity_message: countyData?.data_quality.message ?? null,
+                    unknown_port_station_count: countyData?.data_quality.unknown_capacity_station_count ?? null
                 }
             }
         })
 
-        const geojson = { type: 'FeatureCollection', features }
+        const geojson: FeatureCollection = { type: 'FeatureCollection', features }
+
+        if (regionLoads.get(map) !== request) return
 
         if (map.getSource('regions')) {
             ;(map.getSource('regions') as mapboxgl.GeoJSONSource).setData(
-                geojson as any
+                geojson
             )
         } else {
             removeExistingLayers(map)
 
             map.addSource('regions', {
                 type: 'geojson',
-                data: geojson as any
+                data: geojson
             })
 
             createPolygonLayers(map)
@@ -252,13 +310,15 @@ export async function loadCountyPolygons(
         // APPLY THEME OVERRIDE
         applyThemeColors(map, filters.opportunityMode)
     } catch (error) {
+        if (request.controller.signal.aborted) return
         console.error('Failed to load county polygons:', error)
         if (onError)
             onError(error instanceof Error ? error : new Error(String(error)))
     }
 }
 
-export async function loadChargerPoints(map: mapboxgl.Map, filters: any) {
+export async function loadChargerPoints(map: mapboxgl.Map, filters: ScoreFilters) {
+    const request = beginLoad(pointLoads, map)
     const bounds = map.getBounds()
 
     if (!bounds) {
@@ -267,13 +327,12 @@ export async function loadChargerPoints(map: mapboxgl.Map, filters: any) {
     }
 
     try {
-        // Build charger type filter
-        const types = []
-        if (filters.showDCFast) types.push('dcfast')
-        if (filters.showLevel2) types.push('level2')
-        if (filters.showLevel1) types.push('level1')
+        const speedConditions: string[] = []
+        if (filters.showDCFast) speedConditions.push('dcfast_ports.gt.0')
+        if (filters.showLevel2) speedConditions.push('level2_ports.gt.0')
+        if (filters.showLevel1) speedConditions.push('level1_ports.gt.0')
 
-        if (types.length === 0) {
+        if (speedConditions.length === 0 || (filters.showTesla === false && filters.showCCS === false)) {
             if (map.getLayer('charger-points')) {
                 map.removeLayer('charger-points')
             }
@@ -283,38 +342,32 @@ export async function loadChargerPoints(map: mapboxgl.Map, filters: any) {
             return
         }
 
-        // Base query with geographic bounds
-        let query = supabaseAdmin
-            .from('charging_stations')
-            .select('*')
-            .in('charger_type_detailed', types)
-            .gte('latitude', bounds.getSouth())
-            .lte('latitude', bounds.getNorth())
-            .gte('longitude', bounds.getWest())
-            .lte('longitude', bounds.getEast())
-            .limit(500)
-
-        // Apply connector type filtering if both aren't enabled
-        if (filters.showTesla !== filters.showCCS) {
-            if (filters.showTesla && !filters.showCCS) {
-                // Only Tesla/NACS - look for TESLA connector type
-                query = query.contains('ev_connector_types', ['TESLA'])
-            } else if (filters.showCCS && !filters.showTesla) {
-                // Only CCS/J1772/CHAdeMO - filter stations with these connector types
-                // Use overlaps operator to check if array contains any of these values
-                query = query.overlaps('ev_connector_types', ['J1772COMBO', 'J1772', 'CHADEMO'])
+        const signal = AbortSignal.any([request.controller.signal, AbortSignal.timeout(15000)])
+        const chargers = await readAllPages<ChargerPoint>((from, to) => {
+            let query = supabase.from('charging_stations').select('*')
+                .or(speedConditions.join(',')).eq('restricted_access', false)
+                .gte('latitude', bounds.getSouth()).lte('latitude', bounds.getNorth())
+                .gte('longitude', bounds.getWest()).lte('longitude', bounds.getEast())
+                .order('id').range(from, to).abortSignal(signal)
+            if (filters.showTesla === true && filters.showCCS === false) {
+                query = query.overlaps('ev_connector_types', ['TESLA', 'NACS', 'J3400'])
+            } else if (filters.showCCS === true && filters.showTesla === false) {
+                query = query.overlaps('ev_connector_types', ['J1772COMBO', 'J1772', 'CHADEMO', 'J3271', 'NEMA515', 'NEMA520', 'NEMA1450'])
             }
-        }
-        // If both Tesla and CCS are enabled (or both disabled), show all stations
+            return query
+        })
 
-        const { data: chargers, error } = await query
+        if (pointLoads.get(map) !== request) return
 
-        if (error) {
-            console.error('Error fetching charger points:', error)
-            return
-        }
-
-        const features = (chargers || []).map((charger) => ({
+        const family = filters.showTesla === false ? 'other' : filters.showCCS === false ? 'tesla' : undefined
+        const features: Feature<Point>[] = (chargers || []).flatMap((charger) => {
+            const capacity = stationCapacity({ ...charger, ev_connector_types: charger.ev_connector_types ?? [] }, family)
+            const ports = (filters.showLevel1 ? capacity.ports.level1 : 0) +
+                (filters.showLevel2 ? capacity.ports.level2 : 0) + (filters.showDCFast ? capacity.ports.dcfast : 0)
+            // Station-level speed and connector matches can refer to different
+            // charging units. Require the selected combination at the same unit.
+            if (!capacity.known || !capacity.compatible || ports <= 0) return []
+            return [{
             type: 'Feature',
             geometry: {
                 type: 'Point',
@@ -325,27 +378,30 @@ export async function loadChargerPoints(map: mapboxgl.Map, filters: any) {
                 type: charger.charger_type_detailed,
                 network: charger.network,
                 address: charger.address,
-                num_ports: charger.num_ports || 1,
+                num_ports: ports,
                 ev_connector_types: charger.ev_connector_types || [],
                 charging_level: charger.charging_level,
                 access_code: charger.access_code,
                 max_power_kw: charger.max_power_kw
             }
-        }))
+        }]
+        })
 
-        const geojson = { type: 'FeatureCollection', features }
+        const geojson: FeatureCollection = { type: 'FeatureCollection', features }
 
         if (map.getSource('charger-points')) {
             ;(
                 map.getSource('charger-points') as mapboxgl.GeoJSONSource
-            ).setData(geojson as any)
+            ).setData(geojson)
         } else {
             map.addSource('charger-points', {
                 type: 'geojson',
-                data: geojson as any
+                data: geojson
             })
 
             createChargerPointsLayer(map)
+            if (mapsWithPointHandlers.has(map)) return
+            mapsWithPointHandlers.add(map)
 
             // Hover-based Popup for Points
             let popup: mapboxgl.Popup | null = null
@@ -362,7 +418,7 @@ export async function loadChargerPoints(map: mapboxgl.Map, filters: any) {
                 }
 
                 // Helper function to format connector types
-                const formatConnectorTypes = (connectorTypes: any) => {
+                const formatConnectorTypes = (connectorTypes: unknown) => {
                     if (!connectorTypes || !Array.isArray(connectorTypes)) return ''
                     
                     const typeColors: { [key: string]: string } = {
@@ -393,7 +449,7 @@ export async function loadChargerPoints(map: mapboxgl.Map, filters: any) {
                             border: 1px solid ${typeColors[type] ? `${typeColors[type]}40` : 'rgba(255, 255, 255, 0.1)'};
                             white-space: nowrap;
                         ">
-                            ${typeNames[type] || type}
+                            ${escapeHtml(typeNames[type] || type)}
                         </span>
                     `).join(' ')
                 }
@@ -434,7 +490,7 @@ export async function loadChargerPoints(map: mapboxgl.Map, filters: any) {
                                     margin: 0; 
                                     line-height: 1.3;
                                     flex: 1;
-                                ">${props.name}</h3>
+                                ">${escapeHtml(props.name)}</h3>
                             </div>
                             
                             <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
@@ -489,7 +545,7 @@ export async function loadChargerPoints(map: mapboxgl.Map, filters: any) {
                                     letter-spacing: 0.5px;
                                     border: 1px solid rgba(255, 255, 255, 0.1);
                                 ">
-                                    ${props.network}
+                                    ${escapeHtml(props.network)}
                                 </span>` : ''}
                                 ${props.num_ports > 1 ? `
                                 <span style="
@@ -504,7 +560,7 @@ export async function loadChargerPoints(map: mapboxgl.Map, filters: any) {
                                     letter-spacing: 0.5px;
                                     border: 1px solid rgba(99, 102, 241, 0.3);
                                 ">
-                                    ${props.num_ports} Ports
+                                    ${escapeHtml(props.num_ports)} Ports
                                 </span>` : ''}
                                 ${props.max_power_kw ? `
                                 <span style="
@@ -519,7 +575,7 @@ export async function loadChargerPoints(map: mapboxgl.Map, filters: any) {
                                     letter-spacing: 0.5px;
                                     border: 1px solid rgba(245, 158, 11, 0.3);
                                 ">
-                                    ${props.max_power_kw}kW
+                                    ${escapeHtml(props.max_power_kw)}kW
                                 </span>` : ''}
                             </div>
                             
@@ -555,7 +611,7 @@ export async function loadChargerPoints(map: mapboxgl.Map, filters: any) {
                                     letter-spacing: 0.5px;
                                     border: 1px solid rgba(239, 68, 68, 0.3);
                                 ">
-                                    ${props.access_code === 'private' ? 'Private Access' : props.access_code}
+                                    ${props.access_code === 'private' ? 'Private Access' : escapeHtml(props.access_code)}
                                 </span>
                             </div>` : ''}
                             
@@ -570,7 +626,7 @@ export async function loadChargerPoints(map: mapboxgl.Map, filters: any) {
                                     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
                                     line-height: 1.4;
                                 ">
-                                    ${props.address}
+                                    ${escapeHtml(props.address)}
                                 </p>
                             </div>
                         </div>
@@ -595,16 +651,18 @@ export async function loadChargerPoints(map: mapboxgl.Map, filters: any) {
             })
         }
     } catch (error) {
+        if (request.controller.signal.aborted) return
         console.error('Error loading charger points:', error)
     }
 }
 
 export async function loadZipPolygons(
     map: mapboxgl.Map,
-    filters: any,
+    filters: ScoreFilters,
     setupInteractions: (type: string) => void,
     onError?: (error: Error) => void
 ) {
+    const request = beginLoad(regionLoads, map)
     try {
         console.log('Loading zip-level data with geometries from database...')
 
@@ -613,7 +671,7 @@ export async function loadZipPolygons(
             throw new Error('Map bounds not available')
         }
 
-        const zoom = Math.round(map.getZoom())
+        const zoom = Math.max(9, Math.round(map.getZoom()))
 
         const apiUrl =
             `/api/charging-data?zoom=${zoom}&` +
@@ -622,8 +680,7 @@ export async function loadZipPolygons(
             `east=${bounds.getEast()}&` +
             `west=${bounds.getWest()}`
 
-        const dataResponse = await fetch(apiUrl)
-        const scoreData = await dataResponse.json()
+        const scoreData = await fetchMapData(apiUrl, request.controller.signal)
 
         if (!scoreData || !scoreData.data) {
             await loadCountyPolygons(map, filters, setupInteractions)
@@ -634,36 +691,41 @@ export async function loadZipPolygons(
 
         const filteredData = applyFiltersToData(scoreData.data, filters)
 
-        const features = filteredData
-            .filter((zip: any) => zip.geometry)
-            .map((zip: any, index: number) => ({
-                type: 'Feature',
-                id: index,
-                geometry: zip.geometry,
+        const features: Feature[] = filteredData.flatMap((zip, index) => {
+            if (!zip.geometry) return []
+            return [{
+                type: 'Feature', id: index, geometry: zip.geometry,
                 properties: {
-                    score: zip.score || 0,
+                    score: zip.score ?? null,
                     zip_code: zip.zip_code,
                     state: zip.state,
-                    charger_count: zip.charger_count || 0,
-                    filtered_charger_count: zip.filtered_charger_count || 0,
-                    population: zip.population || 0
+                    charger_count: zip.charger_count ?? 0,
+                    filtered_charger_count: zip.filtered_charger_count ?? null,
+                    population: zip.population ?? null,
+                    model_message: zip.model_message,
+                    traffic_message: zip.traffic_message,
+                    capacity_message: zip.data_quality.message,
+                    unknown_port_station_count: zip.data_quality.unknown_capacity_station_count ?? null
                 }
-            }))
+            }]
+        })
 
         if (features.length === 0) return
 
-        const geojson = { type: 'FeatureCollection', features }
+        const geojson: FeatureCollection = { type: 'FeatureCollection', features }
+
+        if (regionLoads.get(map) !== request) return
 
         if (map.getSource('regions')) {
             ;(map.getSource('regions') as mapboxgl.GeoJSONSource).setData(
-                geojson as any
+                geojson
             )
         } else {
             removeExistingLayers(map)
 
             map.addSource('regions', {
                 type: 'geojson',
-                data: geojson as any
+                data: geojson
             })
 
             createPolygonLayers(map)
@@ -674,9 +736,9 @@ export async function loadZipPolygons(
         // APPLY THEME OVERRIDE
         applyThemeColors(map, filters.opportunityMode)
     } catch (error) {
+        if (request.controller.signal.aborted) return
         console.error('❌ Failed to load zip polygons:', error)
         if (onError)
             onError(error instanceof Error ? error : new Error(String(error)))
-        await loadCountyPolygons(map, filters, setupInteractions, onError)
     }
 }

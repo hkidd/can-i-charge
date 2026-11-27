@@ -28,7 +28,7 @@ export default function CheckoutSuccessPage() {
                         transition={{ delay: 0.2 }}
                     >
                         <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                            You're all set!
+                            You&apos;re all set!
                         </h1>
                         <p className="text-xl text-white/50 mb-12">
                             Welcome to Can I Charge Pro. Your API key is on its way to your email.
@@ -79,7 +79,7 @@ export default function CheckoutSuccessPage() {
                                     </div>
                                     <div>
                                         <div className="text-white font-medium">Get help</div>
-                                        <div className="text-white/40 text-sm">Questions? We're here to help</div>
+                                        <div className="text-white/40 text-sm">Questions? We&apos;re here to help</div>
                                     </div>
                                 </a>
                             </div>

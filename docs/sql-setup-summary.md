@@ -1,29 +1,25 @@
-# SQL Setup Summary for ZIP Geometries Separation
+# Database upgrade summary
 
-## 1. Create the zip_geometries table
-Run: `create-zip-geometries-table.sql`
-- Creates dedicated table for ZIP polygon geometries
-- Adds spatial indexes for performance
-- Enables RLS with public read access
+This repository contains upgrade migrations, not a complete initial schema.
+For the agreed direct rollout, inspect the live schema and confirm a recoverable
+backup before applying them. A separate staging project is optional.
 
-## 2. Create helper functions
-Run: `create-zip-geometry-functions.sql`
-- `insert_zip_geometry()` - Inserts geometries with PostGIS conversion
-- `update_zip_geometry_states()` - Updates state info from zip_level_data
+Apply in order:
 
-## 3. Update the data retrieval function
-Run: `create-zip-data-function.sql`
-- `get_zip_data_with_geometry()` - Joins zip_level_data with zip_geometries for map display
+1. `supabase/migrations/20261124222811_station_refresh.sql` adds normalized capacity,
+   shared scoring fields, run-aware staging, and transactional publication. It
+   requires the four existing data tables and their staging counterparts.
+2. `supabase/migrations/20261124222816_region_lookup.sql` adds the containing-ZIP
+   lookup. It uses the existing `zip_geometries.geometry` PostGIS column when
+   available. Missing geometry permits a county-boundary fallback.
+3. `supabase/migrations/20261124222817_subscription_access.sql` adds subscription
+   event ordering, key-delivery receipts, and transactional daily quotas. It
+   requires the existing `api_keys` table and retires its legacy write paths.
 
-## 4. Import geometries to new table
-Run: `node scripts/import-zip-geometries-v2.mjs`
-- Imports all ZIP geometries from zips.geojson
-- Stores in dedicated zip_geometries table
-- One-time operation (geometries rarely change)
+The existing map function `get_zip_data_with_geometry` and the ZIP geometry
+reference data remain prerequisites. Historical setup SQL filenames referenced
+in earlier documentation are not present in this repository. Do not run geometry
+import scripts as a routine refresh; the legacy importer clears geometry data.
 
-## Benefits:
-- ✅ Geometries are permanent reference data
-- ✅ Data generation won't delete geometries
-- ✅ Better performance with dedicated spatial indexes
-- ✅ Cleaner separation of concerns
-- ✅ Daily updates only touch aggregated data, not geometries
+See [the production guide](PRODUCTION.md) for required schema checks, preview
+configuration, staging scenarios, deployment coordination, and recovery limits.

@@ -4,16 +4,16 @@
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-blue?logo=react)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-Database-green?logo=supabase)](https://supabase.com/)
 [![Mapbox](https://img.shields.io/badge/Mapbox-Maps-blue?logo=mapbox)](https://www.mapbox.com/)
 
 ## ✨ Features
 
 ### 🎯 **Smart EV Scoring Algorithm**
-- **Multi-factor Analysis**: Combines population density, station/port counts, vehicle miles traveled, and connector compatibility
+- **Multi-factor Analysis**: Uses one regional calculation based on reported capacity, population, charging speeds, and connector options
 - **Dynamic Scoring**: Calculates EV infrastructure readiness on a 0-100 scale
-- **Real-time Updates**: Daily refreshes from NREL charging station database
+- **Scheduled Updates**: Daily refreshes from NREL charging station database
 
 ### 🗺️ **Interactive Map Experience**
 - **Multi-scale Analysis**: State (zoom 0-4), county (zoom 5-8), ZIP code (zoom 9-11), individual stations (zoom 13+)
@@ -31,7 +31,7 @@
 ### 📊 **Comprehensive Scoring Dashboard**
 - **EV Readiness Score**: Visual score display with animated progress ring
 - **Proximity Grid**: Station counts at different distances with toggle for DC Fast vs. all stations
-- **Service Level Assessment**: Excellent/Good/Fair/Poor/Rural classifications
+- **Service Level Assessment**: Excellent/Good/Fair/Poor, with unrated results when data is incomplete
 - **Nearest Charger**: Distance and details for the closest charging station
 
 ### 🔧 **Admin & Management Tools**
@@ -58,24 +58,24 @@
 ### **Backend & Database**
 - **Supabase** (PostgreSQL) with PostGIS for spatial data
 - **NREL API** integration for charging station data
-- **US Census API** for population and traffic data
+- **US Census ACS API** for population; **EPA NEI** for historical annual road-traffic estimates
 - **Mapbox Geocoding** for address resolution
 
 ### **Data Pipeline**
 - **Automated Data Ingestion**: Daily NREL API updates
 - **Spatial Aggregation**: PostGIS-powered ZIP code boundary analysis
-- **Smart Updates**: Only process regions with new/changed data
+- **Complete Snapshots**: Rebuild every region level and report station changes
 - **Multi-level Caching**: Optimized queries for different zoom levels
 
 ### **Infrastructure**
-- **Vercel** deployment with edge functions
+- **Vercel** deployment with Node.js functions
 - **Sentry** error monitoring and performance tracking
 - **Environment Configuration** for development/staging/production
 
 ## 🚀 **Getting Started**
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 26 LTS (`nvm use`)
 - PostgreSQL with PostGIS extension
 - Supabase account
 - Mapbox account
@@ -98,19 +98,39 @@ cp .env.example .env.local
 Configure your `.env.local` with:
 ```env
 # Database
-DATABASE_URL=your_supabase_database_url
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 # APIs
 NEXT_PUBLIC_MAPBOX_TOKEN=your_mapbox_token
-NREL_API_KEY=your_nrel_api_key
+NLR_API_KEY=your_station_provider_api_key
+CENSUS_API_KEY=your_census_api_key
+CRON_SECRET=your_long_random_server_secret
+NEXT_PUBLIC_URL=http://localhost:3000
 
 # Monitoring (optional)
-SENTRY_DSN=your_sentry_dsn
+NEXT_PUBLIC_SENTRY_DSN=your_sentry_dsn
 SENTRY_AUTH_TOKEN=your_sentry_auth_token
 ```
+
+The station refresh upgrade and rollout are documented in
+[docs/PRODUCTION.md](docs/PRODUCTION.md#station-refresh-rollout). The new migration
+requires an existing database schema and must be applied before the new refresh
+code can run.
+
+Refresh endpoints require `Authorization: Bearer <CRON_SECRET>` for every request.
+They return 503 when the secret is absent and 401 for invalid authorization.
+Privileged database access requires `SUPABASE_SERVICE_ROLE_KEY` and is isolated
+from client code. Station markers use the public Supabase client, so their table
+must have the intended read-only RLS policy.
+
+Billing webhooks require `POLAR_WEBHOOK_SECRET` and verify the original body with
+the Polar SDK before processing. Set `POLAR_ACCESS_TOKEN` and `RESEND_API_KEY`
+along with `POLAR_PRODUCT_ID` when enabling checkout and subscription emails.
+Use `POLAR_ENVIRONMENT=sandbox` in preview and `production` for production.
+Apply all nine upgrade migrations using the direct rollout in the production
+guide before enabling the new billing handlers.
 
 3. **Database Setup**
 ```bash
@@ -133,14 +153,15 @@ npm run dev          # Start development server
 npm run build        # Build for production
 npm run start        # Start production server
 npm run lint         # Run ESLint
-npm run type-check   # Run TypeScript checks
+npm run typecheck    # Run TypeScript checks
+npm test             # Run fixtures and PostgreSQL migration tests
 ```
 
 ### **Project Structure**
 ```
 ├── app/                 # Next.js app router pages
 │   ├── api/            # API routes
-│   ├── admin/          # Admin dashboard
+│   ├── explore/        # Interactive charging map
 │   └── globals.css     # Global styles
 ├── components/         # React components
 │   ├── Map.tsx        # Main map component
@@ -149,16 +170,20 @@ npm run type-check   # Run TypeScript checks
 │   └── ...            # Other UI components
 ├── lib/               # Utility libraries
 │   ├── map-*.ts      # Map-related utilities
-│   ├── aggregation.ts # Data aggregation logic
-│   ├── scoring.ts    # EV scoring algorithm
-│   └── supabase.ts   # Database client
+│   ├── station-model.ts       # Source validation and port normalization
+│   ├── refresh-service.ts     # Complete snapshot workflow
+│   ├── region-aggregation.ts  # Shared regional counts
+│   ├── region-geography.ts    # Indexed county boundaries
+│   └── supabase*.ts           # Public and server database clients
+├── supabase/migrations/ # Versioned database upgrades
+├── tests/            # Local fixtures and migration checks
 ├── docs/             # Documentation
 └── scripts/          # Data processing scripts
 ```
 
 ## 📊 **Data Sources**
 
-- **[NREL Alternative Fuels Data Center](https://afdc.energy.gov/)**: Charging station locations and specifications
+- **[AFDC / NLR station API](https://developer.nlr.gov/docs/transportation/alt-fuel-stations-v1/all/)**: Charging station locations and specifications
 - **[US Census Bureau](https://www.census.gov/)**: Population and geographic boundary data
 - **[FHWA](https://www.fhwa.dot.gov/)**: Vehicle Miles Traveled statistics
 - **[US Census TIGER/Line](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html)**: ZIP code boundary geometries

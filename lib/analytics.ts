@@ -12,8 +12,8 @@ export interface AnalyticsEvent {
 // Google Analytics 4 implementation
 declare global {
   interface Window {
-    gtag: (...args: any[]) => void
-    dataLayer: any[]
+    gtag: (...args: unknown[]) => void
+    dataLayer: unknown[]
   }
 }
 

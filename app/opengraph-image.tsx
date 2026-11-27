@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og'
 
-export const runtime = 'edge'
+export const runtime = 'nodejs'
 
 export const alt = 'Can I Charge? - EV Charging Infrastructure Map'
 export const size = {

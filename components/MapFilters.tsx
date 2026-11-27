@@ -168,7 +168,7 @@ export default function MapFilters({
                                                 Opportunity Mode
                                             </span>
                                             <span className='text-[10px] text-foreground/60 font-mono'>
-                                                High population, few chargers
+                                                2030 capacity missing · lower is better
                                             </span>
                                         </div>
                                     </div>
@@ -186,7 +186,7 @@ export default function MapFilters({
                                     </div>
                                 </div>
 
-                                {/* Port Weighting */}
+                                {/* Show Port Counts */}
                                 <div
                                     className={`flex items-center justify-between group ${
                                         isMobile
@@ -198,7 +198,7 @@ export default function MapFilters({
                                         <div className='w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgb(59,130,246)] flex-shrink-0' />
                                         <div className='flex flex-col'>
                                             <span className='text-sm font-semibold text-foreground tracking-wide'>
-                                                Port Weighting
+                                                Show Port Counts
                                             </span>
                                             <span className='text-[10px] text-foreground/60 font-mono'>
                                                 Count charging capacity vs

@@ -1,3 +1,5 @@
+import * as Sentry from '@sentry/nextjs'
+
 export type ErrorLevel = 'error' | 'warning' | 'info' | 'success'
 
 export interface ApiError {
@@ -75,35 +77,12 @@ export function logError(error: unknown, context: string, additionalData?: Recor
   
   console.error(`[${context}]`, errorInfo)
   
-  // Send to Sentry if available
-  if (typeof window !== 'undefined' && (window as any).__SENTRY__) {
-    const Sentry = (window as any).__SENTRY__
-    Sentry.withScope((scope: any) => {
-      scope.setTag('context', context)
-      if (additionalData) {
-        scope.setContext('additional', additionalData)
-      }
-      if (error instanceof Error) {
-        Sentry.captureException(error)
-      } else {
-        Sentry.captureMessage(`Error in ${context}: ${String(error)}`)
-      }
-    })
-  } else if (typeof globalThis !== 'undefined' && (globalThis as any).__SENTRY__) {
-    // Server-side Sentry
-    const Sentry = (globalThis as any).__SENTRY__
-    Sentry.withScope((scope: any) => {
-      scope.setTag('context', context)
-      if (additionalData) {
-        scope.setContext('additional', additionalData)
-      }
-      if (error instanceof Error) {
-        Sentry.captureException(error)
-      } else {
-        Sentry.captureMessage(`Error in ${context}: ${String(error)}`)
-      }
-    })
-  }
+  Sentry.withScope(scope => {
+    scope.setTag('context', context)
+    if (additionalData) scope.setContext('additional', additionalData)
+    if (error instanceof Error) Sentry.captureException(error)
+    else Sentry.captureMessage(`Error in ${context}: ${String(error)}`)
+  })
 }
 
 export async function withErrorHandling<T>(

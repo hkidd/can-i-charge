@@ -1,15 +1,24 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+let resend: Resend | undefined
+
+function getResend(): Resend {
+    if (resend) return resend
+    const apiKey = process.env.RESEND_API_KEY
+    if (!apiKey?.trim()) throw new Error('Email service is not configured')
+    resend = new Resend(apiKey)
+    return resend
+}
 
 const FROM_EMAIL = 'Can I Charge <noreply@canicharge.com>'
 
 export async function sendApiKeyEmail(params: {
     to: string
     apiKey: string
+    idempotencyKey?: string
 }): Promise<{ success: boolean; error?: string }> {
     try {
-        const { data, error } = await resend.emails.send({
+        const { error } = await getResend().emails.send({
             from: FROM_EMAIL,
             to: params.to,
             subject: 'Your Can I Charge API Key',
@@ -70,7 +79,7 @@ export async function sendApiKeyEmail(params: {
 </body>
 </html>
             `,
-        })
+        }, { idempotencyKey: params.idempotencyKey })
 
         if (error) {
             console.error('Error sending email:', error)
@@ -89,7 +98,7 @@ export async function sendApiKeyReminderEmail(params: {
     apiKey: string
 }): Promise<{ success: boolean; error?: string }> {
     try {
-        const { data, error } = await resend.emails.send({
+        const { error } = await getResend().emails.send({
             from: FROM_EMAIL,
             to: params.to,
             subject: 'Your Can I Charge API Key',
