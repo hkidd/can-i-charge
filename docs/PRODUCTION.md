@@ -685,3 +685,17 @@ the national traffic float is normalized as described above. Hashes are derived
 from the actual row, including on updates, so a supplied digest cannot hide a
 content change. The publisher uses a bounded 8MB working-memory setting only
 inside its function and records per-table elapsed milliseconds in diagnostics.
+
+The first live retry after fingerprint backfill still timed out at the final
+ZIP removal query. Its anti-join scanned both wide heap tables even when there
+were no missing ZIPs. The covering-index follow-up adds narrow key/digest
+indexes and empty partial indexes for missing-fingerprint checks. Inserts and
+removals now materialize candidate IDs before fetching or deleting heap rows;
+source counts and missing-fingerprint checks use separate indexed queries.
+
+A full-size transaction using the same ready snapshot and the backend role,
+then rolling back, completed publication in 14.120 seconds with the unchanged
+55-second deadline. The ZIP step took 2.895 seconds, versus approximately 30
+seconds in the earlier incremental draft. It identified 326 station additions,
+51 station changes, 198 station removals, 42 state changes, 3,142 county changes,
+and 380 ZIP changes. No region was removed or inserted in this snapshot.

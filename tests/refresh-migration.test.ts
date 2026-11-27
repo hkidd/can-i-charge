@@ -5,7 +5,7 @@ import { processNRELStation } from '@/lib/station-model'
 
 let db: PGlite
 const tables = ['charging_stations','state_level_data','county_level_data','zip_level_data']
-const migration = ['20261124222811_station_refresh.sql', '20261124224006_refresh_safeupdate_compatibility.sql', '20261125143508_connector_filter_summaries.sql', '20261125144158_traffic_provenance.sql', '20261125150129_fleet_readiness_model.sql', '20261127043611_incremental_snapshot_publication.sql']
+const migration = ['20261124222811_station_refresh.sql', '20261124224006_refresh_safeupdate_compatibility.sql', '20261125143508_connector_filter_summaries.sql', '20261125144158_traffic_provenance.sql', '20261125150129_fleet_readiness_model.sql', '20261127043611_incremental_snapshot_publication.sql', '20261127162126_publication_covering_indexes.sql']
     .map(name => readFileSync(new URL(`../supabase/migrations/${name}`, import.meta.url), 'utf8')).join('\n')
 const id = '00000000-0000-4000-8000-000000000001'
 const station = processNRELStation({ id: 1, station_name: 'New', latitude: 40, longitude: -105, state: 'CO', zip: '80000', ev_dc_fast_num: 2 })
