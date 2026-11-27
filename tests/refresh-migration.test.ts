@@ -5,7 +5,7 @@ import { processNRELStation } from '@/lib/station-model'
 
 let db: PGlite
 const tables = ['charging_stations','state_level_data','county_level_data','zip_level_data']
-const migration = ['20261124222811_station_refresh.sql', '20261124224006_refresh_safeupdate_compatibility.sql', '20261125143508_connector_filter_summaries.sql', '20261125144158_traffic_provenance.sql', '20261125150129_fleet_readiness_model.sql']
+const migration = ['20261124222811_station_refresh.sql', '20261124224006_refresh_safeupdate_compatibility.sql', '20261125143508_connector_filter_summaries.sql', '20261125144158_traffic_provenance.sql', '20261125150129_fleet_readiness_model.sql', '20261127043611_incremental_snapshot_publication.sql']
     .map(name => readFileSync(new URL(`../supabase/migrations/${name}`, import.meta.url), 'utf8')).join('\n')
 const id = '00000000-0000-4000-8000-000000000001'
 const station = processNRELStation({ id: 1, station_name: 'New', latitude: 40, longitude: -105, state: 'CO', zip: '80000', ev_dc_fast_num: 2 })
@@ -21,8 +21,8 @@ async function begin(count = 1) {
 async function write(run: string, table: string, rows: object[]) {
     return scalar('select public.write_station_refresh_batch($1,$2,$3::jsonb)', [run, table, JSON.stringify(rows)])
 }
-async function prepare(run: string) {
-    await write(run, 'charging_stations', [station])
+async function prepare(run: string, currentStation = station) {
+    await write(run, 'charging_stations', [currentStation])
     await scalar('select public.mark_station_refresh_staged($1)', [run])
     await scalar('select public.claim_station_refresh($1)', [run])
     await write(run, 'state_level_data', [{ state_name: 'Colorado', center_lat: 40, center_lng: -105, charger_count: 1, total_ports: 2 }])
@@ -145,6 +145,95 @@ describe('transactional station refresh migration', () => {
         await db.exec('alter table public.zip_level_data drop constraint fixture_failure')
         await scalar('select public.publish_station_refresh($1)', [run])
         expect(await scalar('select name from public.charging_stations')).toBe('New')
+    })
+    it('keeps existing regional IDs and leaves unchanged rows physically untouched', async () => {
+        const first = await begin()
+        await prepare(first)
+        await scalar('select public.publish_station_refresh($1)', [first])
+        const before = await Promise.all(tables.map(table => db.query(`select id,xmin::text as version from public.${table}`)))
+        const next = await begin()
+        await prepare(next)
+        // A new observation timestamp alone must not rewrite every regional row/index.
+        await db.exec("update public.zip_level_data_staging set updated_at=now()+interval '1 day'")
+        const result = await scalar('select public.publish_station_refresh($1)', [next]) as { diagnostics: { publication: Record<string, unknown> } }
+        for (let i=0;i<tables.length;i++) {
+            expect((await db.query(`select id,xmin::text as version from public.${tables[i]}`)).rows).toEqual(before[i].rows)
+            expect(result.diagnostics.publication[tables[i]]).toMatchObject({ inserted: 0, updated: 0, deleted: 0 })
+        }
+    })
+    it('ignores tiny national-baseline rounding noise but publishes material demand changes', async () => {
+        const demand = { bev: 1000, national_road_miles_per_capita: 26.62225344810652 }
+        const regionTables = tables.slice(1)
+        const first = await begin()
+        await prepare(first)
+        for (const table of regionTables) await db.query(`update public.${table}_staging set demand_data=$1::jsonb`, [JSON.stringify(demand)])
+        await scalar('select public.publish_station_refresh($1)', [first])
+        const before = await Promise.all(regionTables.map(table => db.query(`select id,xmin::text as version from public.${table}`)))
+        const next = await begin()
+        await prepare(next)
+        for (const table of regionTables) await db.query(`update public.${table}_staging set demand_data=$1::jsonb`, [JSON.stringify({ ...demand, national_road_miles_per_capita: 26.622253448106513 })])
+        await scalar('select public.publish_station_refresh($1)', [next])
+        for (let i=0;i<regionTables.length;i++) expect((await db.query(`select id,xmin::text as version from public.${regionTables[i]}`)).rows).toEqual(before[i].rows)
+        const changed = await begin()
+        await prepare(changed)
+        for (const table of regionTables) await db.query(`update public.${table}_staging set demand_data=$1::jsonb`, [JSON.stringify({ ...demand, bev: 1001 })])
+        const result = await scalar('select public.publish_station_refresh($1)', [changed]) as { diagnostics: { publication: Record<string, { updated: number }> } }
+        for (const table of regionTables) expect(result.diagnostics.publication[table].updated).toBe(1)
+        const trafficChange = await begin()
+        await prepare(trafficChange)
+        for (const table of regionTables) await db.query(`update public.${table}_staging set demand_data=$1::jsonb`, [JSON.stringify({ ...demand, bev: 1001, national_road_miles_per_capita: 27 })])
+        const trafficResult = await scalar('select public.publish_station_refresh($1)', [trafficChange]) as { diagnostics: { publication: Record<string, { updated: number }> } }
+        for (const table of regionTables) expect(trafficResult.diagnostics.publication[table].updated).toBe(1)
+    })
+    it('derives fingerprints from row content and refuses publication until backfill is complete', async () => {
+        const run = await begin()
+        await prepare(run)
+        const original = await scalar('select refresh_fingerprint from public.charging_stations_staging')
+        await db.exec("update public.charging_stations_staging set refresh_fingerprint='forged'")
+        expect(await scalar('select refresh_fingerprint from public.charging_stations_staging')).toBe(original)
+        await db.exec("alter table public.zip_level_data disable trigger maintain_refresh_fingerprint; update public.zip_level_data set refresh_fingerprint=null; alter table public.zip_level_data enable trigger maintain_refresh_fingerprint;")
+        await expect(scalar('select public.publish_station_refresh($1)', [run])).rejects.toThrow('fingerprint backfill')
+        expect(await scalar('select name from public.charging_stations')).toBe('Old')
+        await db.exec('update public.zip_level_data set refresh_fingerprint=null')
+        expect(await scalar('select public.publish_station_refresh($1)', [run])).toMatchObject({ status: 'published' })
+    })
+    it('updates changed records without replacing their identity or creation date', async () => {
+        const first = await begin()
+        await prepare(first)
+        await scalar('select public.publish_station_refresh($1)', [first])
+        const before = (await db.query('select id,created_at from public.charging_stations')).rows
+        const next = await begin()
+        await prepare(next, { ...station, name: 'Corrected station name' })
+        const result = await scalar('select public.publish_station_refresh($1)', [next]) as { diagnostics: { publication: Record<string, unknown> } }
+        expect((await db.query('select id,created_at from public.charging_stations')).rows).toEqual(before)
+        expect(await scalar('select name from public.charging_stations')).toBe('Corrected station name')
+        expect(result.diagnostics.publication.charging_stations).toMatchObject({ inserted: 0, updated: 1, deleted: 0 })
+    })
+    it('adds new stations and removes missing ones in the same validated publication', async () => {
+        const first = await begin()
+        await prepare(first)
+        await scalar('select public.publish_station_refresh($1)', [first])
+        const replacement = processNRELStation({ id: 2, station_name: 'Replacement', latitude: 40, longitude: -105, state: 'CO', zip: '80000', ev_dc_fast_num: 2 })
+        const next = await begin()
+        await prepare(next, replacement)
+        const result = await scalar('select public.publish_station_refresh($1)', [next]) as { diagnostics: { publication: Record<string, unknown> } }
+        expect(await scalar('select id from public.charging_stations')).toBe(replacement.id)
+        expect(result.diagnostics.publication.charging_stations).toMatchObject({ inserted: 1, updated: 0, deleted: 1 })
+    })
+    it('can reclaim an expired ready snapshot after a publication failure without rebuilding it', async () => {
+        const run = await begin()
+        await prepare(run)
+        await scalar('select public.fail_station_refresh($1,$2)', [run, 'statement timeout'])
+        await db.query("update public.station_refresh_runs set lease_expires_at=now()-interval '1 minute' where id=$1", [run])
+        expect(await scalar('select public.claim_station_refresh($1)', [run])).toMatchObject({ status: 'ready' })
+        expect(await scalar('select public.publish_station_refresh($1)', [run])).toMatchObject({ status: 'published', error: null })
+    })
+    it('still refuses an expired snapshot that has not passed aggregate validation', async () => {
+        const run = await begin()
+        await write(run, 'charging_stations', [station])
+        await scalar('select public.mark_station_refresh_staged($1)', [run])
+        await db.query("update public.station_refresh_runs set lease_expires_at=now()-interval '1 minute' where id=$1", [run])
+        await expect(scalar('select public.claim_station_refresh($1)', [run])).rejects.toThrow('lease expired')
     })
     it('revalidates the snapshot immediately before publication', async () => {
         const run = await begin()

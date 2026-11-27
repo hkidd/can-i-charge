@@ -624,3 +624,64 @@ Isolated browser checks exercised active, unavailable, and recovered status at
 1366×768 and 390×664. Header bottoms were 115/131px and map searches began at
 130/158px, respectively. Eight rapid filter changes issued two data requests,
 with the superseded request cancelled; no browser exceptions were observed.
+
+## Publication timeout correction — 2026-11-27
+
+The 03:40 UTC `/api/smart-update` failure occurred inside
+`publish_station_refresh`, while reinserting the complete ZIP table after
+rewriting the other production tables. Run
+`fa396f04-4432-418c-9f34-efba786b8b3f` reached `ready` with 84,666 stations,
+51 states, 3,142 counties, and 34,074 ZIPs. The transaction rolled back, retaining
+the preceding published snapshot. This was a publication failure, after ingestion
+and aggregate validation had completed.
+
+The incremental-publication migration keeps all four tables in the same
+transaction. It matches stations by stable ID and regions by state name, county
+FIPS, or ZIP/state; validates staged and final counts; updates changed records;
+inserts additions; and deletes removals. Existing IDs and creation timestamps
+remain stable. A SHA-256 fingerprint maintained by database triggers identifies changed rows
+without loading and comparing every large JSON payload. Unchanged rows are not
+rewritten; changed rows are fetched by primary key before applying their values. An updated observation timestamp
+alone does not trigger a write. Regional `updated_at` now describes the last
+material row change; the refresh-run publication timestamp describes snapshot
+freshness. Table OIDs, grants, RLS policies, and geometry relationships are retained.
+
+Ready snapshots cannot accept batch writes. A failed, already-validated ready
+snapshot can be reclaimed after its publication lease expires, provided a newer
+run has not replaced it. Incomplete or superseded snapshots remain ineligible.
+Successful publication clears the prior error and records per-table inserted,
+updated, and deleted counts in `diagnostics.publication`. Retrying an already
+published run returns its result without repeating mutations.
+
+The national traffic baseline now sums states in canonical order. Previously,
+database UUID ordering could change the final floating-point digits (for example
+26.62225344810652 versus 26.622253448106513), marking every region's demand
+metadata as changed despite equivalent inputs. The publisher compares that one demand value at ten decimal places so already-ready
+snapshots with the older summation order can also avoid meaningless rewrites.
+All other demand fields retain exact comparison. This does not change the scoring
+formula or traffic observations.
+
+A fresh full database archive was verified before this correction at
+`~/.local/share/can-i-charge/backups/2026-11-27T04-35-09-984Z/`, 192,836,274 bytes,
+SHA-256 `3b1b406eb91d906fe833bda64133528ffd380fe085eda93df328e2a1710d0ea1`.
+Required table data and ACL entries were present and full decompression passed;
+restore was not rehearsed. Regression tests cover unchanged-row physical versions,
+stable identities, changed/add/remove behavior, all-table rollback, expired-ready
+recovery, stale unvalidated leases, idempotent retries, and state-order invariance.
+
+Fingerprint columns/triggers are installed in a short schema transaction. Populate
+existing fingerprints separately so an exclusive schema lock is not held across
+that work:
+
+```sh
+node scripts/backfill-refresh-fingerprints.mjs
+node scripts/backfill-refresh-fingerprints.mjs --apply
+```
+
+The backfill commits 1,000-row batches, pauses between batches, and can resume.
+It changes only internal metadata. Publication refuses an incomplete fingerprint
+backfill. Hashes exclude row IDs, creation/observation dates, and refresh-run IDs;
+the national traffic float is normalized as described above. Hashes are derived
+from the actual row, including on updates, so a supplied digest cannot hide a
+content change. The publisher uses a bounded 8MB working-memory setting only
+inside its function and records per-table elapsed milliseconds in diagnostics.

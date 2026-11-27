@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import { CountyIndex, polygonContains, getCountyIndex } from '@/lib/region-geography'
 import { addStation, buildRegionalSnapshot, emptySummary } from '@/lib/region-aggregation'
+import { US_STATES } from '@/lib/us-states'
 import { processNRELStation } from '@/lib/station-model'
 const west = [[[-106,39],[-105,39],[-105,41],[-106,41],[-106,39]]]
 const east = [[[-105,39],[-104,39],[-104,41],[-105,41],[-105,39]]]
@@ -81,4 +82,14 @@ it('resolves legacy US ZIP placeholders from boundaries before assigning state f
     expect(result.zips[0].state).toBe('CO')
     expect(result.zips[0].demand_data?.state_code).toBe('CO')
     expect(result.zips[0].ev_infrastructure_score).toBe(0)
+})
+
+it('keeps national demand inputs identical when database state-row ordering changes', () => {
+    const states = US_STATES.map((state, i) => ({ state_name: state.name, population: 1000000+i,
+        traffic_data: { annual_vmt: 100000001+i*987654321, year: 2023, county_count: 1, expected_county_count: 1 } }))
+    const people = { states: new Map([['08',5000000]]), counties: new Map<string,number>(), zips: new Map<string,number>(), source: 'fixture', failures: [] }
+    const forward = buildRegionalSnapshot([station],people,{states,counties:[],zips:[]},index,'2026-11-27T00:00:00Z')
+    const reverse = buildRegionalSnapshot([station],people,{states:[...states].reverse(),counties:[],zips:[]},index,'2026-11-27T00:00:00Z')
+    expect(forward.states.find(row=>row.state_name==='Colorado')?.demand_data?.national_road_miles_per_capita).not.toBeNull()
+    expect(reverse).toEqual(forward)
 })

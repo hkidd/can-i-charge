@@ -132,8 +132,9 @@ export function buildRegionalSnapshot(stations: Station[], people: PopulationDat
         const fips = index.counties.find(c => c.state === state.code)?.fips.slice(0, 2) ?? ''
         return total + (population(fips, people.states, ref, people.source).population ?? 0)
     }, 0)
-    const nationalDailyVmt = [...stateRefs.values()].reduce((total, ref) => {
-        const traffic = ref.traffic_data as TrafficData | undefined
+    // Canonical ordering prevents row/UUID order from changing floating-point metadata.
+    const nationalDailyVmt = US_STATES.reduce((total, state) => {
+        const traffic = stateRefs.get(state.name)?.traffic_data as TrafficData | undefined
         return total + (traffic && traffic.county_count === traffic.expected_county_count ? annualToDaily(traffic.annual_vmt, traffic.year) : 0)
     }, 0)
     // Require national coverage before using national road intensity as a baseline.
