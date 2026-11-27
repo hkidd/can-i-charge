@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useReducedMotionPreference } from '@/lib/use-reduced-motion'
 
 // Simplified US map coordinates as dots (normalized 0-100 scale)
 const US_DOTS = [
@@ -136,6 +137,7 @@ const HIGHLIGHT_DOTS = [
 ]
 
 export default function USMapDots() {
+    const reduceMotion = useReducedMotionPreference()
     return (
         <div className='absolute inset-0 overflow-hidden pointer-events-none'>
             {/* Radial gradient overlay for text readability */}
@@ -160,11 +162,11 @@ export default function USMapDots() {
                         r='0.8'
                         fill='currentColor'
                         className='text-emerald-400'
-                        initial={{ opacity: 0, scale: 0 }}
+                        initial={reduceMotion ? false : { opacity: 0, scale: 0 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{
-                            delay: i * 0.01,
-                            duration: 0.5,
+                            delay: reduceMotion ? 0 : i * 0.01,
+                            duration: reduceMotion ? 0 : 0.5,
                             ease: 'easeOut'
                         }}
                     />
@@ -182,15 +184,15 @@ export default function USMapDots() {
                             stroke='currentColor'
                             strokeWidth='0.3'
                             className='text-emerald-400'
-                            initial={{ opacity: 0, scale: 0.5 }}
+                            initial={reduceMotion ? false : { opacity: 0, scale: 0.5 }}
                             animate={{
-                                opacity: [0.5, 0],
-                                scale: [1, 2]
+                                opacity: reduceMotion ? 0.3 : [0.5, 0],
+                                scale: reduceMotion ? 1 : [1, 2]
                             }}
                             transition={{
-                                delay: 1 + i * 0.2,
-                                duration: 2,
-                                repeat: Infinity,
+                                delay: reduceMotion ? 0 : 1 + i * 0.2,
+                                duration: reduceMotion ? 0 : 2,
+                                repeat: reduceMotion ? 0 : Infinity,
                                 repeatDelay: 3
                             }}
                         />
@@ -201,9 +203,9 @@ export default function USMapDots() {
                             r='1.2'
                             fill='currentColor'
                             className='text-emerald-400'
-                            initial={{ opacity: 0 }}
+                            initial={reduceMotion ? false : { opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            transition={{ delay: 0.5 + i * 0.1 }}
+                            transition={{ delay: reduceMotion ? 0 : 0.5 + i * 0.1, duration: reduceMotion ? 0 : 0.3 }}
                         />
                     </motion.g>
                 ))}
@@ -216,9 +218,9 @@ export default function USMapDots() {
                     strokeWidth='0.2'
                     className='text-cyan-400'
                     strokeDasharray='2 2'
-                    initial={{ pathLength: 0, opacity: 0 }}
+                    initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 0.3 }}
-                    transition={{ delay: 1.5, duration: 2, ease: 'easeInOut' }}
+                    transition={{ delay: reduceMotion ? 0 : 1.5, duration: reduceMotion ? 0 : 2, ease: 'easeInOut' }}
                 />
             </svg>
         </div>

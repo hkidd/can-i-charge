@@ -31,13 +31,14 @@ export default function Button({
         font-medium rounded-full
         transition-all duration-300
         cursor-pointer select-none
+        focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600
     `
 
     const variants = {
         primary: `
-            bg-blue-500
+            bg-blue-600
             text-white
-            hover:bg-blue-400
+            hover:bg-blue-700
             hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]
         `,
         secondary: `

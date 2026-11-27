@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useReducedMotionPreference } from '@/lib/use-reduced-motion'
 import { Car, Zap, Building2, MapPin, Gauge } from 'lucide-react'
 import {
     AnimatedSection,
@@ -52,6 +53,7 @@ const SECTION_THEMES = {
 }
 
 export default function LandingPage() {
+    const reduceMotion = useReducedMotionPreference()
     const [showWidget, setShowWidget] = useState(false)
     const [widgetAddress, setWidgetAddress] = useState('')
     const [topStates, setTopStates] = useState<
@@ -108,16 +110,18 @@ export default function LandingPage() {
 
         const color = solidColors[currentSection]
 
-        // Safari sometimes needs the meta tag to be fully replaced, not just updated
+        // Next.js owns this metadata node. Update it without removing React's DOM.
         const existingMeta = document.querySelector('meta[name="theme-color"]')
         if (existingMeta) {
-            existingMeta.remove()
+            existingMeta.setAttribute('content', color)
+            return
         }
 
         const newMeta = document.createElement('meta')
         newMeta.name = 'theme-color'
         newMeta.content = color
         document.head.appendChild(newMeta)
+        return () => newMeta.remove()
     }, [currentSection])
 
     // Fetch top states on mount
@@ -208,7 +212,7 @@ export default function LandingPage() {
                                 variant='hero'
                                 showButton={true}
                                 buttonText='Get Score'
-                                showAnimatedPlaceholder={true}
+                                showAnimatedPlaceholder={!reduceMotion}
                                 showScoreCard={false}
                                 onScoreResult={handleScoreResult}
                                 className='mb-8'
@@ -247,7 +251,7 @@ export default function LandingPage() {
                                 </span>{' '}
                                 Real coverage.
                             </h2>
-                            <p className='text-xl text-gray-500'>
+                            <p className='text-xl text-gray-600'>
                                 Aggregated from the National Renewable Energy
                                 Laboratory
                             </p>
@@ -285,7 +289,7 @@ export default function LandingPage() {
                                                 suffix={stat.suffix}
                                             />
                                         </div>
-                                        <div className='text-gray-500 text-lg font-medium'>
+                                        <div className='text-gray-600 text-lg font-medium'>
                                             {stat.label}
                                         </div>
                                     </div>
@@ -499,7 +503,7 @@ export default function LandingPage() {
                                     Instant EV Readiness scores on your site.
                                 </p>
                                 <div className='bg-gray-800 rounded-xl p-6 font-mono text-sm'>
-                                    <div className='text-gray-500 mb-2'>
+                                    <div className='text-gray-400 mb-2'>
                                         {'<!-- Add to your site -->'}
                                     </div>
                                     <div className='space-y-1'>
@@ -567,10 +571,10 @@ export default function LandingPage() {
                             <AnimatedSection direction='right'>
                                 <div className='flex justify-center lg:justify-start'>
                                     <motion.div
-                                        animate={{ y: [0, -8, 0] }}
+                                        animate={{ y: reduceMotion ? 0 : [0, -8, 0] }}
                                         transition={{
                                             duration: 4,
-                                            repeat: Infinity,
+                                            repeat: reduceMotion ? 0 : Infinity,
                                             ease: 'easeInOut'
                                         }}
                                     >
@@ -594,7 +598,7 @@ export default function LandingPage() {
                             <h2 className='text-4xl md:text-6xl font-bold mb-6 text-gray-900'>
                                 Ready to explore?
                             </h2>
-                            <p className='text-xl text-gray-500 mb-10 max-w-xl mx-auto'>
+                            <p className='text-xl text-gray-600 mb-10 max-w-xl mx-auto'>
                                 Discover EV charging infrastructure across the
                                 United States.
                             </p>
@@ -624,7 +628,7 @@ export default function LandingPage() {
                                         <span className='text-blue-500'>?</span>
                                     </span>
                                 </div>
-                                <p className='text-gray-500 text-sm leading-relaxed'>
+                                <p className='text-gray-600 text-sm leading-relaxed'>
                                     The EV Readiness Score for any US location.
                                 </p>
                             </div>
@@ -637,7 +641,7 @@ export default function LandingPage() {
                                     <li>
                                         <a
                                             href='/explore'
-                                            className='text-gray-500 hover:text-gray-900 transition-colors'
+                                            className='text-gray-600 hover:text-gray-900 transition-colors'
                                         >
                                             Interactive Map
                                         </a>
@@ -645,7 +649,7 @@ export default function LandingPage() {
                                     <li>
                                         <a
                                             href='/widget-demo'
-                                            className='text-gray-500 hover:text-gray-900 transition-colors'
+                                            className='text-gray-600 hover:text-gray-900 transition-colors'
                                         >
                                             Embed Widget
                                         </a>
@@ -653,7 +657,7 @@ export default function LandingPage() {
                                     <li>
                                         <a
                                             href='/docs'
-                                            className='text-gray-500 hover:text-gray-900 transition-colors'
+                                            className='text-gray-600 hover:text-gray-900 transition-colors'
                                         >
                                             API Access
                                         </a>
@@ -669,7 +673,7 @@ export default function LandingPage() {
                                     <li>
                                         <a
                                             href='/docs'
-                                            className='text-gray-500 hover:text-gray-900 transition-colors'
+                                            className='text-gray-600 hover:text-gray-900 transition-colors'
                                         >
                                             API Documentation
                                         </a>
@@ -677,7 +681,7 @@ export default function LandingPage() {
                                     <li>
                                         <a
                                             href='/support'
-                                            className='text-gray-500 hover:text-gray-900 transition-colors'
+                                            className='text-gray-600 hover:text-gray-900 transition-colors'
                                         >
                                             Support
                                         </a>
@@ -687,7 +691,7 @@ export default function LandingPage() {
                                             href='https://polar.sh/canicharge/portal'
                                             target='_blank'
                                             rel='noopener noreferrer'
-                                            className='text-gray-500 hover:text-gray-900 transition-colors'
+                                            className='text-gray-600 hover:text-gray-900 transition-colors'
                                         >
                                             Manage Subscription
                                         </a>
@@ -703,7 +707,7 @@ export default function LandingPage() {
                                     <li>
                                         <a
                                             href='/support#feedback'
-                                            className='text-gray-500 hover:text-gray-900 transition-colors'
+                                            className='text-gray-600 hover:text-gray-900 transition-colors'
                                         >
                                             Feedback
                                         </a>
@@ -713,10 +717,10 @@ export default function LandingPage() {
                         </div>
                         {/* Bottom Bar */}
                         <div className='border-t border-gray-200 pt-8 flex flex-col md:flex-row items-center justify-between gap-4'>
-                            <div className='text-gray-400 text-sm'>
+                            <div className='text-gray-600 text-sm'>
                                 © {new Date().getFullYear()} Can I Charge?
                             </div>
-                            <div className='text-sm text-gray-400'>
+                            <div className='text-sm text-gray-600'>
                                 Data from{' '}
                                 <a
                                     href='https://afdc.energy.gov'
